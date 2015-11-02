@@ -1,0 +1,6 @@
+file(GLOB watchlist RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
+foreach(f ${watchlist})
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${f} AND NOT (${f} STREQUAL ".git") AND NOT (${f} STREQUAL "common"))
+        add_subdirectory(${f})
+    endif()
+endforeach()

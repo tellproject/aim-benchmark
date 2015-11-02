@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 2.8)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../cmake)
 
-find_package(Ibverbs REQUIRED)
 message(STATUS "Found ibverbs at ${Ibverbs_LIBRARY}")
 
 find_package(Boost 1.47.0 REQUIRED COMPONENTS thread system timer)
@@ -141,7 +140,6 @@ set(UTIL_SRC
     ${UTIL_SOURCE_DIR}/dimension-tables-unique-values.cpp
     ${UTIL_SOURCE_DIR}/folly/ProducerConsumerQueue.h
     ${UTIL_SOURCE_DIR}/folly/ScopeGuard.h
-    ${UTIL_SOURCE_DIR}/sparsehash/dense_hash_map
     ${UTIL_SOURCE_DIR}/sqlite/sqlite3.h
     ${UTIL_SOURCE_DIR}/sqlite/sqlite3.c
 )
@@ -162,4 +160,4 @@ add_executable (aim
     main.cpp
 )
 
-target_link_libraries(aim ${Boost_LIBRARIES} ${Ibverbs_LIBRARY} dl)
+target_link_libraries(aim ${Boost_LIBRARIES} dl)

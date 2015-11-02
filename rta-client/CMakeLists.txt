@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 2.8)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/../cmake)
 
-find_package(Ibverbs REQUIRED)
-
 find_package(Boost 1.47.0 REQUIRED COMPONENTS program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -89,7 +87,6 @@ add_executable(
 target_link_libraries(
     ${PROJECT_NAME}
     ${Boost_LIBRARIES}
-    ${Ibverbs_LIBRARY}
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++0x -pthread ${CMAKE_CXX_FLAGS}")
