@@ -27,7 +27,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "sep/aim_schema_entry.h"
+#include "server/sep/aim_schema_entry.h"
 
 /*
  * This class contains infomation about every atttibute in the AM. Every attribute

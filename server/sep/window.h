@@ -22,7 +22,7 @@
  */
 #pragma once
 
-#include "sep/utils.h"
+#include "server/sep/utils.h"
 
 /*
  * Describes the window of an AM attribute. A window has a type, a duration,
@@ -39,7 +39,7 @@ public:
     WindowLength length() const { return _length; }
     WindowType type() const { return _type; }
 
-private:
+public:
     WindowType _type;           //window type (TUMB, STEP, CONT)
     Timestamp _duration;        //size of window (in msecs)
     WindowLength _length;   //DAY, WEEK

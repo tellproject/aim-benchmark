@@ -26,7 +26,7 @@
 #include <vector>
 #include <string>
 #include "sep-client/communication/AbstractSEPClientCommunication.h"
-#include "util/system-constants.h"
+#include "common/system-constants.h"
 
 class SEPClient
 {

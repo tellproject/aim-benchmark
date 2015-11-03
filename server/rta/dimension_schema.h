@@ -27,7 +27,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "rta/utils.h"
+#include "server/rta/utils.h"
 
 /*
  * This class implements the schema of the dimensions columns for a

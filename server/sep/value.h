@@ -22,8 +22,8 @@
  */
 #pragma once
 
-#include "sep/type_descriptor.h"
-#include "sep/utils.h"
+#include "server/sep/type_descriptor.h"
+#include "server/sep/utils.h"
 
 /*
  * Describes the value of an AM attribute. An attribute is an aggregation over

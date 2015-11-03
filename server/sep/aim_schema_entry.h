@@ -26,9 +26,9 @@
 #include <cstring>
 #include <limits>
 
-#include "sep/event.h"
-#include "sep/value.h"
-#include "sep/window.h"
+#include "server/sep/event.h"
+#include "server/sep/value.h"
+#include "server/sep/window.h"
 
 /*
  * SchemaEntry: describes an attribute in the AM record. Each value has a Window

@@ -1,27 +1,37 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(tpcc)
+project(aim-benchmark)
 
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
 
-set(COMMON_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
-
 set(COMMON_SRC
-    ${COMMON_SOURCE_DIR}/logger.h
-    ${COMMON_SOURCE_DIR}/serialization.h
-    ${COMMON_SOURCE_DIR}/system-constants.h
-    ${COMMON_SOURCE_DIR}/dimension-tables-mapping.h
-    ${COMMON_SOURCE_DIR}/dimension-tables.h
-    ${COMMON_SOURCE_DIR}/dimension-tables-unique-values.h
-    ${COMMON_SOURCE_DIR}/dimension-tables-unique-values.cpp
-    ${COMMON_SOURCE_DIR}/sqlite/sqlite3.h
-    ${COMMON_SOURCE_DIR}/sqlite/sqlite3.c
+    common/Protocol.cpp
+    common/Util.cpp
+    common/logger.h
+    common/serialization.h
+    common/system-constants.h
+    common/dimension-tables-mapping.h
+    common/dimension-tables.h
+    common/dimension-tables-unique-values.h
+    common/dimension-tables-unique-values.cpp
+    common/sqlite/sqlite3.h
+    common/sqlite/sqlite3.c
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16 -ftemplate-depth=512")
+
+add_library(aim_common STATIC ${COMMON_SRC})
+# Workaround for link failure with GCC 5 (GCC Bug 65913)
+#if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+#    target_link_libraries(aim_common PUBLIC atomic)
+#endif()
+target_include_directories(aim_common PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(aim_common PUBLIC ${Crossbow_INCLUDE_DIRS})
+target_link_libraries(aim_common PUBLIC ${Boost_LIBRARIES})
+target_link_libraries(aim_common PUBLIC telldb)
 
 set(SERVER_SRC
     server/main.cpp
@@ -103,40 +113,12 @@ set(SEP_CLIENT_SRC
     sep-client/main.cpp
     sep-client/SEPClient.h
     sep-client/SEPClient.cpp
-    sep-client/communication/AbstractSEPClientCommunication.h
-    sep-client/communication/AbstractSEPClientCommunication.cpp
-    sep-client/communication/TCPSEPClientCommunication.h
-    sep-client/communication/TCPSEPClientCommunication.cpp
-    sep-client/communication/InfinibandSEPClientCommunication.h
-    sep-client/communication/InfinibandSEPClientCommunication.cpp
 )
 
 set(RTA_CLIENT_SRC
     rta-client/main.cpp
-    rta-client/RTAClient.h
+    rta-client/RTAClient.hpp
     rta-client/RTAClient.cpp
-    rta-client/query/AbstractQueryClientObject.h
-    rta-client/query/AbstractQueryClientObject.cpp
-    rta-client/query/Query1ClientObject.h
-    rta-client/query/Query1ClientObject.cpp
-    rta-client/query/Query2ClientObject.h
-    rta-client/query/Query2ClientObject.cpp
-    rta-client/query/Query3ClientObject.h
-    rta-client/query/Query3ClientObject.cpp
-    rta-client/query/Query4ClientObject.h
-    rta-client/query/Query4ClientObject.cpp
-    rta-client/query/Query5ClientObject.h
-    rta-client/query/Query5ClientObject.cpp
-    rta-client/query/Query6ClientObject.h
-    rta-client/query/Query6ClientObject.cpp
-    rta-client/query/Query7ClientObject.h
-    rta-client/query/Query7ClientObject.cpp
-    rta-client/communication/AbstractRTAClientCommunication.h
-    rta-client/communication/AbstractRTAClientCommunication.cpp
-    rta-client/communication/TCPRTAClientCommunication.h
-    rta-client/communication/TCPRTAClientCommunication.cpp
-    rta-client/communication/InfinibandRTAClientCommunication.h
-    rta-client/communication/InfinibandRTAClientCommunication.cpp
 )
 
 add_executable(aim_server ${SERVER_SRC} ${COMMON_SRC})

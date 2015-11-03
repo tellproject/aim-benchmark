@@ -29,8 +29,8 @@
 #include <string>
 #include <sstream>
 
-#include "util/logger.h"
-#include "rta/dimension_record.h"
+#include "common/logger.h"
+#include "server/rta/dimension_record.h"
 
 using namespace std::chrono;
 

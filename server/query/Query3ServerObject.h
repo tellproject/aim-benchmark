@@ -27,8 +27,8 @@
 #include <cstring>
 #include <mutex>
 
-#include "util/system-constants.h"
-#include "query/AbstractQueryServerObject.h"
+#include "common//system-constants.h"
+#include "server/query/AbstractQueryServerObject.h"
 
 /*
  * Q3: SELECT sum(total_cost_this_week)/sum(total_duration_this_week) as cost_ratio

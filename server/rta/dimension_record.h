@@ -25,7 +25,7 @@
 #include <random>
 #include <vector>
 
-#include "rta/dimension_schema.h"
+#include "server/rta/dimension_schema.h"
 
 /*
  * This class implements a record of a subscriber in the

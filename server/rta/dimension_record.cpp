@@ -20,13 +20,13 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include "rta/dimension_record.h"
+#include "server/rta/dimension_record.h"
 
 #include <cstring>
 #include <cassert>
 
-#include "util/dimension-tables-mapping.h"
-#include "util/dimension-tables.h"
+#include "common/dimension-tables-mapping.h"
+#include "common/dimension-tables.h"
 
 /*
  * Dummy Constructor, it constructs a predefined dimension record

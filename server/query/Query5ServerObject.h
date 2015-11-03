@@ -32,7 +32,7 @@
  * This class implements the logic for the Highest Revenue query
  * on the server side. Query 6.2.2:
  *
- * SELECT region, sum(total cost of local calls this week) as local,
+ * SELECT region.name, sum(total cost of local calls this week) as local,
  *        sum(total cost of long distance calls) as long_distance
  * FROM VWT, SubscriptionType t, SubscriberCategory c, RegionInfo r
  * WHERE t.type = subscriptionType AND c.type = subscriberCategory AND

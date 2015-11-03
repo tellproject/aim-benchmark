@@ -23,7 +23,7 @@
 #pragma once
 
 #include <inttypes.h>
-#include "sep/utils.h"
+#include "server/sep/utils.h"
 
 /*
  * This class wraps an actual data type. It contains the size of the data type
@@ -38,7 +38,7 @@ public:
     DataType type() const;
     uint8_t size() const;
 
-private:
+public:
     DataType _type;     //INT, UINT, ULONG, DOUBLE
     uint8_t _size;
 };

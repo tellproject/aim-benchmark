@@ -25,8 +25,8 @@
 #include <thread>
 
 #include "sep-client/SEPClient.h"
-#include "util/logger.h"
-#include "util/system-constants.h"
+#include "common/logger.h"
+#include "common/system-constants.h"
 
 void print_sep_client_args(const char* argv[])
 {
