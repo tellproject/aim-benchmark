@@ -20,146 +20,6 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-//#include <chrono>
-//#include <cstdint>
-//#include <cstdio>
-//#include <fstream>
-//#include <iostream>
-//#include <thread>
-//#include <vector>
-
-//#include "common/logger.h"
-//#include "rta-client/RTAClient.hpp"
-//#include "common/system-constants.h"
-
-//void
-//print_rta_client_args(int argc, const char* argv[])
-//{
-//    std::cout << "Experiment-duration: " << argv[1] << '\n'
-//              << "Protocol: " << argv[2] << '\n'
-//              << "Server-file: " << argv[3] << std::endl;
-//    for (uint32_t i = 4; i < argc; i+=2) {
-//        std::cout << "Workload-file: " << argv[i]
-//                     << " Threads: " << argv[i+1] << std::endl;
-//    }
-//}
-
-///*
-// * Wait until experiment is finished.
-// */
-//void
-//wait(uint64_t exp_duration)
-//{
-//    std::chrono::high_resolution_clock::time_point current, notified;
-//    auto start = std::chrono::high_resolution_clock::now();
-//    while (true) {
-//        current = std::chrono::high_resolution_clock::now();
-//        if (std::chrono::duration_cast<std::chrono::duration<double>>
-//                (current - start).count() >= exp_duration) {
-//            return;
-//        }
-//        else {
-//            // notify user how much time of the experiment has passed
-//            long diff = std::chrono::duration_cast<std::chrono::duration
-//                    <double>>(current - notified).count();
-//            if (diff >= (exp_duration/100.0)) {
-//                notified = std::chrono::high_resolution_clock::now();
-//                diff = std::chrono::duration_cast<std::chrono::duration
-//                        <double>>(notified - start).count();
-//                std::cout << (int) (100.0 * diff / exp_duration)
-//                          << "% completed." << std::endl;
-//            }
-//            // sleep for a while
-//            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-//        }
-//    }
-//}
-
-///*
-// * Stop the clients.
-// */
-//void
-//stopRTAClients(std::vector<std::unique_ptr<RTAClient>> &clients)
-//{
-//    for (auto &client : clients) {
-//        client->stop();
-//    }
-//    return;
-//}
-
-///*
-// * Wait for clients to stop and output result.
-// */
-//void result(std::vector<std::unique_ptr<RTAClient>> &clients)
-//{
-//    int count = 0;
-//    for (auto &client : clients) {
-//        while (!client->hasEnded());
-//        auto statistics = client->getStatistics();
-//        std::cout << "Summary for workload " << (count+1) << " [ms]:" << std::endl;
-//        for (uint8_t i=0; i<statistics.size(); ++i) {
-//            std::cout << "Q" << (i+1) << ": " << statistics[i][1]
-//                      << " (+/- " << statistics[i][2] << "), N = "
-//                      << statistics[i][0] << std::endl;
-//        }
-//        ++count;
-//    }
-//}
-
-//void printArgMsg()
-//{
-//    std::cout << "usage: rta-client <experiment-duration> <protocol>"
-//              << "<server-file> [<workload-file> <number-of-threads>]+"
-//              << "*experiment duration in seconds"
-//              << "*protocol, [Inf, TCP]"
-//              << "*server-file: each line contains 'host port'"
-//              << "*each <workload-file> is executed with "
-//              << "<number-of-threads> in parallel" << std::endl;
-//}
-
-//int main(int argc, const char* argv[])
-//{
-//    if (argc < 6 || (argc % 2 == 1)) {
-//        printArgMsg();
-//        return -1;
-//    }
-
-//#ifndef NDEBUG
-//    std::cout << "DEBUG\n" << std::endl;
-//#endif
-
-//    print_rta_client_args(argc, argv);
-//    uint64_t exp_duration(std::stol(argv[1]));
-//    std::string protocol_string(argv[2]);
-//    NetworkProtocol protocol = (protocol_string.compare("Inf")==0)?
-//                NetworkProtocol::Infiniband:
-//                NetworkProtocol::TCP;
-
-//    std::string server_file(argv[3]);
-
-//    // prepare client workloads
-//    std::vector<ClientWorkload> client_workloads;
-//    client_workloads.reserve((argc-4)/2);
-//    for (uint32_t i = 4; i < argc; i+=2) {
-//        client_workloads.emplace_back(argv[i], std::stoi(argv[i+1]));
-//    }
-
-//    // start clients
-//    auto clients = RTAClient::s_createRTAClients(client_workloads, server_file, protocol);
-
-//    std::cout << "Experiment started. Will wait for " << exp_duration
-//              << " seconds..." << std::endl;
-
-//    // wait until experiment is finished.
-//    wait(exp_duration);
-
-//    // stop the clients
-//    stopRTAClients(clients);
-
-//    // wait for clients to stop and output result
-//    result(clients);
-//}
-
 #include <crossbow/program_options.hpp>
 #include <crossbow/logger.hpp>
 
@@ -189,7 +49,6 @@ std::vector<std::string> split(const std::string str, const char delim) {
 
 int main(int argc, const char** argv) {
     bool help = false;
-    bool populate = false;
     uint64_t numSubscribers = 10 * 1024 * 1024;
     std::string workloadList;
     std::string hostList;
@@ -198,12 +57,11 @@ int main(int argc, const char** argv) {
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
-    auto opts = create_options("tpcc_server",
+    auto opts = create_options("rta_client",
             value<'h'>("help", &help, tag::description{"print help"})
             , value<'H'>("hosts", &hostList, tag::description{"Comma-separated list of hosts"})
             , value<'l'>("log-level", &logLevel, tag::description{"The log level"})
             , value<'c'>("num-clients", &numClients, tag::description{"Number of Clients to run per host"})
-            , value<'P'>("populate", &populate, tag::description{"Populate the database"})
             , value<'n'>("num-subscribers", &numSubscribers, tag::description{"Number of subscribers (data size)"})
             , value<'w'>("workload", &workloadList, tag::description{"Comma-separated list of query numbers (1 to 7)"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
@@ -228,7 +86,7 @@ int main(int argc, const char** argv) {
         std::cerr << "No workload\n";
         return 2;
     }
-    auto startTime = tpcc::Clock::now();
+    auto startTime = aim::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
     try {
@@ -237,6 +95,7 @@ int main(int argc, const char** argv) {
         std::vector<uint8_t> workload (workloadStrings.size());
         for (uint i = 0; i < workloadStrings.size(); ++i)
             workload[i] = std::stoi(workloadStrings[i]);
+
         io_service service;
         auto sumClients = hosts.size() * numClients;
         std::vector<aim::Client> clients;
@@ -244,6 +103,7 @@ int main(int argc, const char** argv) {
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
             clients.emplace_back(service, workload, numSubscribers, endTime);
         }
+
         for (size_t i = 0; i < hosts.size(); ++i) {
             auto h = hosts[i];
             auto addr = split(h, ':');
@@ -261,32 +121,13 @@ int main(int argc, const char** argv) {
                 boost::asio::connect(clients[i*numClients + j].socket(), iter);
             }
         }
-        if (populate) {
-            auto& cmds = clients[0].commands();
-            cmds.execute<tpcc::Command::CREATE_SCHEMA>(
-                    [&clients, numClients, wareHousesPerClient, numWarehouses](const err_code& ec,
-                        const std::tuple<bool, crossbow::string>& res){
-                if (ec) {
-                    LOG_ERROR(ec.message());
-                    return;
-                }
-                if (!std::get<0>(res)) {
-                    LOG_ERROR(std::get<1>(res));
-                    return;
-                }
-                for (auto& client : clients) {
-                    client.populate();
-                }
-            });
-        } else {
-            for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
-                auto& client = clients[i];
-                client.run();
-            }
-        }
-        service.run();
 
-        //TODO: continue here
+        for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
+            auto& client = clients[i];
+            client.run();
+        }
+
+        service.run();
 
         LOG_INFO("Done, writing results");
         std::ofstream out(outFile.c_str());
@@ -296,26 +137,26 @@ int main(int argc, const char** argv) {
             for (const auto& e : queue) {
                 crossbow::string tName;
                 switch (e.transaction) {
-                case tpcc::Command::POPULATE_WAREHOUSE:
-                    tName = "Populate";
+                case aim::Command::Q1:
+                    tName = "Q1";
                     break;
-                case tpcc::Command::CREATE_SCHEMA:
-                    tName = "Schema Create";
+                case aim::Command::Q2:
+                    tName = "Q3";
                     break;
-                case tpcc::Command::STOCK_LEVEL:
-                    tName = "Stock Level";
+                case aim::Command::Q3:
+                    tName = "Q3";
                     break;
-                case tpcc::Command::DELIVERY:
-                    tName = "Delivery";
+                case aim::Command::Q4:
+                    tName = "Q4";
                     break;
-                case tpcc::Command::NEW_ORDER:
-                    tName = "New Order";
+                case aim::Command::Q5:
+                    tName = "Q5";
                     break;
-                case tpcc::Command::ORDER_STATUS:
-                    tName = "Order Status";
+                case aim::Command::Q6:
+                    tName = "Q6";
                     break;
-                case tpcc::Command::PAYMENT:
-                    tName = "Payment";
+                case aim::Command::Q7:
+                    tName = "Q7";
                     break;
                 }
                 out << std::chrono::duration_cast<std::chrono::seconds>(e.start - startTime).count()

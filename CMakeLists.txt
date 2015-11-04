@@ -8,15 +8,11 @@ find_package(Crossbow REQUIRED)
 set(COMMON_SRC
     common/Protocol.cpp
     common/Util.cpp
-    common/logger.h
     common/serialization.h
-    common/system-constants.h
     common/dimension-tables-mapping.h
     common/dimension-tables.h
     common/dimension-tables-unique-values.h
     common/dimension-tables-unique-values.cpp
-    common/sqlite/sqlite3.h
-    common/sqlite/sqlite3.c
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -107,6 +103,8 @@ set(SERVER_SRC
     server/query/Query6ServerObject.h
     server/query/Query7ServerObject.cpp
     server/query/Query7ServerObject.h
+    server/sqlite/sqlite3.h
+    server/sqlite/sqlite3.c
 )
 
 set(SEP_CLIENT_SRC

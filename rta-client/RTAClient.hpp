@@ -75,8 +75,6 @@ public:
 private:
     template<Command C>
     void execute(const typename Signature<C>::arguments& arg);
-
-    //TODO: write populate method here...
 };
 
 }
