@@ -24,7 +24,7 @@
 
 #include <inttypes.h>
 
-#include "sep/am_record.h"
+#include "server/sep/am_record.h"
 
 /*
  * This class implements the logic of a predicate. A predicate has the form:

@@ -26,9 +26,11 @@
 #include <cstring>
 #include <limits>
 
-#include "server/sep/event.h"
+#include <common/Protocol.hpp>
 #include "server/sep/value.h"
 #include "server/sep/window.h"
+
+using namespace aim;
 
 /*
  * SchemaEntry: describes an attribute in the AM record. Each value has a Window
@@ -140,7 +142,7 @@ private:
 struct CostExtractor
 {
     typedef double type;
-    static type extract(const Event &e) { return e.cost(); }
+    static type extract(const Event &e) { return e.cost; }
     static type def() { return 0.0; }
 };
 
@@ -154,7 +156,7 @@ struct CallExtractor
 struct DurExtractor
 {
     typedef uint type;
-    static type extract(const Event &e) { return e.duration(); }
+    static type extract(const Event &e) { return e.duration; }
     static type def() { return 0; }
 };
 
@@ -245,7 +247,7 @@ maintain(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
     Timestamp win_start = (old_ts - se.winInitInfo()) / se.winDuration();
     win_start = win_start * se.winDuration() + se.winInitInfo();
 
-    if (e.timestamp() <= win_start + se.winDuration()) { //belong to the same window
+    if (e.timestamp <= win_start + se.winDuration()) { //belong to the same window
         memcpy(*tmp, *r_tmp, se.size());                 //copy previous value
         *r_tmp += se.size();                             //the same value
         *tmp += se.size();
@@ -273,7 +275,7 @@ updateSum(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp() <= win_start + se.winDuration()) {
+    if (e.timestamp <= win_start + se.winDuration()) {
         t_sum += t_val;
     }
     else {
@@ -299,7 +301,7 @@ updateMax(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp() <= win_start + se.winDuration()) {
+    if (e.timestamp <= win_start + se.winDuration()) {
         t_max = std::max(t_max, t_val);
     }
     else {
@@ -325,7 +327,7 @@ updateMin(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();  //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo(); //when the window starts
 
-    if (e.timestamp() <= win_start + se.winDuration()) {
+    if (e.timestamp <= win_start + se.winDuration()) {
         t_min = std::min(t_min, t_val);
     }
     else {
@@ -342,6 +344,6 @@ updateMin(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
  */
 inline bool noFilter(const Event &e) { return true; }
 
-inline bool localFilter(const Event &e) { return !e.longDistance(); }
+inline bool localFilter(const Event &e) { return !e.long_distance; }
 
-inline bool nonlocalFilter(const Event &e) { return e.longDistance(); }
+inline bool nonlocalFilter(const Event &e) { return e.long_distance; }

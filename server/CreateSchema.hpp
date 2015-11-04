@@ -21,33 +21,22 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #pragma once
+#include <telldb/Types.hpp>
+#include <limits>
 
-#include <mutex>
+#include "server/sep/aim_schema.h"
+#include "server/rta/dimension_schema.h"
 
-#include "sep/communication/AbstractSEPCommunication.h"
+namespace tell {
+namespace db {
 
-/**
- * @brief The LocalSEPCommunication class
- * is used for the standalone server version where events are communicated through local memory
- */
-class LocalSEPCommunication : public AbstractSEPCommunication
-{
-public:
-    LocalSEPCommunication():
-        AbstractSEPCommunication(0),
-        queue_mutex()
-    {}
+class Transaction;
 
-    ~LocalSEPCommunication(){}
+} // namespace db
+} // namespace tell
 
-public:
-    void queueEvent(const Event& event)
-    {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        size_t queue_id = event.callerId() % _queues.size();
-        __queueEvent(queue_id, event);
-    }
+namespace aim {
 
-private:
-    std::mutex queue_mutex;
-};
+void createSchema(tell::db::Transaction& transaction, AIMSchema &aimSchema, DimensionSchema &dimSchema);
+
+} // namespace aim

@@ -29,18 +29,17 @@
 namespace aim {
 
 class Transactions {
-    int16_t mNumWarehouses;
-    Random_t& rnd;
+
 public:
-    Transactions() : rnd(*Random()) {}
-public:
-    Q1Out q1Transaction(tell::db::Transaction& tx, const Q1& in);
-    Q2Out q2Transaction(tell::db::Transaction& tx, const Q2& in);
+    Q1Out q1Transaction(tell::db::Transaction& tx, const Q1In& in);
+    Q2Out q2Transaction(tell::db::Transaction& tx, const Q2In& in);
     Q3Out q3Transaction(tell::db::Transaction& tx);
-    Q4Out q4Transaction(tell::db::Transaction& tx, const Q4& in);
-    Q5Out q5Transaction(tell::db::Transaction& tx, const Q5& in);
-    Q6Out q6Transaction(tell::db::Transaction& tx, const Q6& in);
-    Q7Out q7Transaction(tell::db::Transaction& tx, const Q7& in);
+    Q4Out q4Transaction(tell::db::Transaction& tx, const Q4In& in);
+    Q5Out q5Transaction(tell::db::Transaction& tx, const Q5In& in);
+    Q6Out q6Transaction(tell::db::Transaction& tx, const Q6In& in);
+    Q7Out q7Transaction(tell::db::Transaction& tx, const Q7In& in);
+
+};
 
 } // namespace aim
 

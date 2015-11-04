@@ -28,6 +28,9 @@
 
 #include <telldb/TellDB.hpp>
 
+#include "server/sep/aim_schema.h"
+#include "server/rta/dimension_schema.h"
+
 namespace aim {
 
 class CommandImpl;
@@ -36,7 +39,8 @@ class Connection {
     boost::asio::ip::tcp::socket mSocket;
     std::unique_ptr<CommandImpl> mImpl;
 public:
-    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager);
+    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager,
+               const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();

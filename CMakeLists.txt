@@ -33,12 +33,12 @@ set(SERVER_SRC
     server/main.cpp
     server/Connection.cpp
     server/Connection.hpp
-    server/sep/communication/AbstractSEPCommunication.cpp
-    server/sep/communication/AbstractSEPCommunication.h
-    server/sep/communication/TCPSEPCommunication.cpp
-    server/sep/communication/TCPSEPCommunication.h
-    server/sep/communication/InfinibandSEPCommunication.cpp
-    server/sep/communication/InfinibandSEPCommunication.h
+    server/Transactions.hpp
+    server/Transactions.cpp
+    server/CreateSchema.cpp
+    server/CreateSchema.hpp
+    server/Populate.cpp
+    server/Populate.hpp
     server/sep/aim_column_finder.h
     server/sep/aim_schema.cpp
     server/sep/aim_schema.h
@@ -50,15 +50,9 @@ set(SERVER_SRC
     server/sep/am_record.h
     server/sep/campaign.cpp
     server/sep/campaign.h
-    server/sep/campaign_index.cpp
-    server/sep/campaign_index.h
-    server/sep/campaign_index_builder.cpp
-    server/sep/campaign_index_builder.h
     server/sep/conjunct.cpp
     server/sep/conjunct.h
-    server/sep/entry_attr_index.h
     server/sep/Math.h
-    server/sep/OneDimRTree.h
     server/sep/predicate.cpp
     server/sep/predicate.h
     server/sep/schema_and_index_builder.cpp
@@ -73,12 +67,6 @@ set(SERVER_SRC
     server/sep/value.h
     server/sep/window.cpp
     server/sep/window.h
-    server/rta/communication/AbstractRTACommunication.h
-    server/rta/communication/AbstractRTACommunication.cpp
-    server/rta/communication/TCPRTACommunication.h
-    server/rta/communication/TCPRTACommunication.cpp
-    server/rta/communication/InfinibandRTACommunication.h
-    server/rta/communication/InfinibandRTACommunication.cpp
     server/rta/Controller.cpp
     server/rta/Controller.h
     server/rta/dim_column_finder.h
@@ -87,22 +75,6 @@ set(SERVER_SRC
     server/rta/dimension_schema.cpp
     server/rta/dimension_schema.h
     server/rta/utils.h
-    server/query/AbstractQueryServerObject.cpp
-    server/query/AbstractQueryServerObject.h
-    server/query/Query1ServerObject.cpp
-    server/query/Query1ServerObject.h
-    server/query/Query2ServerObject.cpp
-    server/query/Query2ServerObject.h
-    server/query/Query3ServerObject.cpp
-    server/query/Query3ServerObject.h
-    server/query/Query4ServerObject.cpp
-    server/query/Query4ServerObject.h
-    server/query/Query5ServerObject.cpp
-    server/query/Query5ServerObject.h
-    server/query/Query6ServerObject.cpp
-    server/query/Query6ServerObject.h
-    server/query/Query7ServerObject.cpp
-    server/query/Query7ServerObject.h
     server/sqlite/sqlite3.h
     server/sqlite/sqlite3.c
 )

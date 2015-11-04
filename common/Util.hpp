@@ -73,7 +73,7 @@ private:
     IntDistr _q7_subscr_value_type_dist;
 
 public: // Construction
-    Random_t(size_t subscriberNum=0, uint8_t workloadSize = 1);
+    Random_t(size_t subscriberNum=10*1024*1024, uint8_t workloadSize = 1);
 
 public:
 

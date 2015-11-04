@@ -84,7 +84,7 @@ int main(int argc, const char** argv) {
     }
     if (workloadList.empty()) {
         std::cerr << "No workload\n";
-        return 2;
+        return 1;
     }
     auto startTime = aim::Clock::now();
     auto endTime = startTime + std::chrono::seconds(time);

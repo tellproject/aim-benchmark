@@ -24,7 +24,7 @@
 
 #include <inttypes.h>
 
-#include "sep/utils.h"
+#include "server/sep/utils.h"
 
 /*
  * This class simulates a campaign. It contains all the necessary information

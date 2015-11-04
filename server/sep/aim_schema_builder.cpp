@@ -22,7 +22,7 @@
  */
 #include "aim_schema_builder.h"
 
-#include "sep/utils.h"
+#include "server/sep/utils.h"
 
 /*
  * SQL query for retrieving all the necessary information for an AM attribute

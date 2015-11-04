@@ -21,21 +21,31 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #pragma once
+#include <random>
+#include <cstdint>
+#include <crossbow/string.hpp>
+#include <common/Util.hpp>
 
-#include <thread>
+#include "server/sep/aim_schema.h"
+#include "server/rta/dimension_schema.h"
 
-#include "sep/communication/AbstractSEPCommunication.h"
+namespace tell {
+namespace db {
 
-class TCPSEPCommunication : public AbstractSEPCommunication
-{
+class Transaction;
+class Counter;
+
+} // namespace db
+} // namespace tell
+
+namespace aim {
+
+class Populator {
 public:
-    TCPSEPCommunication(uint32_t port);
-    ~TCPSEPCommunication();
-
-private:
-    bool _is_running;
-    std::thread _main_thread;
-
-private:
-    void run();
+    void populateWideTable(tell::db::Transaction& transaction,
+                const AIMSchema &aimSchema, const DimensionSchema &dimSchema,
+                uint64_t lowest, uint64_t highest);
 };
+
+} // namespace aim
+

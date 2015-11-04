@@ -24,8 +24,6 @@
 
 #include <cassert>
 
-#include "util/system-constants.h"
-
 std::string
 stringDataType(DataType type)
 {
@@ -119,16 +117,4 @@ stringWindowSize(ulong size)
         assert(false);
         return "week";
     }
-}
-
-uint32_t
-belongToThisServer(ulong sub_id, uint server_id)
-{
-    return ((sub_id >> 8) % SERVER_NUM) == server_id;
-}
-
-uint
-findAvailableCores()
-{
-    return std::thread::hardware_concurrency();
 }

@@ -25,8 +25,8 @@
 #include <cassert>
 #include <memory>
 
-#include "sep/am_record.h"
-#include "sep/predicate.h"
+#include "server/sep/am_record.h"
+#include "server/sep/predicate.h"
 
 /*
  * This class implements the logic of Conjunct. It contains an array of

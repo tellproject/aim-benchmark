@@ -29,7 +29,7 @@
  * This file contains a bunch of constants and auxiliary information we use
  * for the project.
  */
-typedef unsigned long long Timestamp;
+typedef long long Timestamp;
 typedef unsigned long ulong;
 typedef unsigned int uint;
 

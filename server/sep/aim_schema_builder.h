@@ -26,12 +26,12 @@
 #include <set>
 #include <string>
 
-#include "util/sqlite/sqlite3.h"
+#include "server/sqlite/sqlite3.h"
 
-#include "sep/aim_schema.h"
-#include "sep/aim_schema_entry.h"
-#include "sep/value.h"
-#include "sep/window.h"
+#include "server/sep/aim_schema.h"
+#include "server/sep/aim_schema_entry.h"
+#include "server/sep/value.h"
+#include "server/sep/window.h"
 
 /*
  * Class responsible for building the schema of the Analytics Matrix. It reads

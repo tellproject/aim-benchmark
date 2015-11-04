@@ -22,10 +22,9 @@
  */
 #pragma once
 
-#include "util/sqlite/sqlite3.h"
+#include "server/sqlite/sqlite3.h"
 
-#include "sep/aim_schema_builder.h"
-#include "sep/campaign_index_builder.h"
+#include "server/sep/aim_schema_builder.h"
 
 /*
  * This class is responsible for reading the meta-database, building the AM
@@ -53,15 +52,8 @@ public:
      */
     AIMSchema buildAIMSchema();
 
-    /*
-     * It reads the meta-database, it parses the retrieved data and based on
-     * them and also on the Schema it builds the Campaign Index (predicates,
-     * unindexed conjuncts, campaigns and entry indexes).
-     */
-    CampaignIndex buildCampaignIndex(const AIMSchema&);
 
 private:
     sqlite3 *_conn;
     AIMSchemaBuilder _aim_schema_builder;
-    CampaignIndexBuilder _campaign_index_builder;
 };

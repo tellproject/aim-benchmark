@@ -433,7 +433,7 @@ public:
     {
     }
     template<class Callback, class Result>
-    void readResonse(const Callback& callback, size_t bytes_read = 0) {
+    void readResponse(const Callback& callback, size_t bytes_read = 0) {
         auto respSize = *reinterpret_cast<size_t*>(mCurrentRequest.get());
         if (bytes_read >= 8 && respSize == bytes_read) {
             // response read
@@ -454,7 +454,7 @@ public:
                         Result res;
                         callback(ec, res);
                     }
-                    readResonse<Callback, Result>(callback, bytes_read + br);
+                    readResponse<Callback, Result>(callback, bytes_read + br);
                 });
     }
 
@@ -486,7 +486,7 @@ public:
                             callback(ec, res);
                             return;
                         }
-                        readResonse<Callback, ResType>(callback);
+                        readResponse<Callback, ResType>(callback);
                     });
     }
 

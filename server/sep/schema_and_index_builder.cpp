@@ -42,9 +42,3 @@ AIMSchema SchemaAndIndexBuilder::buildAIMSchema()
 {
     return _aim_schema_builder.build(_conn);
 }
-
-CampaignIndex
-SchemaAndIndexBuilder::buildCampaignIndex(const AIMSchema &schema)
-{
-    return _campaign_index_builder.build(_conn, schema);
-}

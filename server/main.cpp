@@ -20,85 +20,6 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-//#include <iostream>
-
-//#include "rta/communication/InfinibandRTACommunication.h"
-//#include "rta/communication/TCPRTACommunication.h"
-//#include "rta/dimension_schema.h"
-//#include "sep/communication/InfinibandSEPCommunication.h"
-//#include "sep/communication/TCPSEPCommunication.h"
-//#include "sep/schema_and_index_builder.h"
-//#include "sep/sep.h"
-//#include "sep_config.h"
-
-//using namespace std;
-
-///*
-// * It prints all the configuration details for a run.
-// */
-//void printInfo(uint server_id, string sep_protocol, string rta_protocol,
-//               const AIMSchema &schema, const CampaignIndex &campaign_index)
-//{
-//    cout << "Server id: " << server_id << endl;
-//    cout << "Server number: " << SERVER_NUM << endl;
-//    cout << "SEP Protocol: " << sep_protocol << endl;
-//    cout << "RTA Protocol: " << rta_protocol << endl;
-//    cout << "Records/bucket: " << RECORDS_PER_BUCKET << endl;
-//    cout << "SEP Threads: " << SEP_THREAD_NUM << endl;
-//    cout << "RTA Threads: " << RTA_THREAD_NUM << endl;
-//    cout << "Total Subscribers: " << SUBSCR_NUM << endl;
-//    cout << "Subscribers on this Server: " << SUBSCR_NUM / SERVER_NUM << endl;
-//    cout << "Number of AM attrs: " << schema.numOfEntries() << endl;
-//    cout << "Record size (bytes): " << schema.size() << endl;
-//    cout << "Number of active campaigns: " << campaign_index.campaignNum() << endl;
-//    cout << "Number of entry indexes: " << campaign_index.indexedNum() << endl;
-//    cout << "Number of unindexed conjuncts: " << campaign_index.unindexedNum() << endl;
-//}
-
-//int main(int argc, const char* argv[])
-//{
-//    if (argc != 4 ) {
-//        std::cout << "usage: ./aim <Server Id><SEP protocol><RTA protocol>"
-//                  << std::endl;
-//        return 1;
-//    }
-//    try {
-//        SchemaAndIndexBuilder builder(SQLITE_DB);
-//        AIMSchema aim_schema = builder.buildAIMSchema();
-//        DimensionSchema dim_schema;
-
-//#ifndef NDEBUG
-//        cout << "DEBUG\n" << aim_schema << endl;
-//#endif
-//        CampaignIndex campaign_index = builder.buildCampaignIndex(aim_schema);
-//        std::string sep_protocol(argv[2]);
-//        std::string rta_protocol(argv[3]);
-//        printInfo(stoi(argv[1]), sep_protocol, rta_protocol, aim_schema, campaign_index);
-
-//        unique_ptr<AbstractSEPCommunication> sep_com;
-//        unique_ptr<AbstractRTACommunication> rta_com;
-//        if (sep_protocol.compare("Inf") == 0) {
-//            sep_com.reset(new InfinibandSEPCommunication(SEP_PORT));
-//        }
-//        else {
-//            sep_com.reset(new TCPSEPCommunication(SEP_PORT));
-//        }
-//        if (rta_protocol.compare("Inf") == 0) {
-//            rta_com.reset(new InfinibandRTACommunication(RTA_PORT, RTA_THREAD_NUM, 1, aim_schema, dim_schema));
-//        }
-//        else {
-//            rta_com.reset(new TCPRTACommunication(RTA_PORT, RTA_THREAD_NUM, 1, aim_schema, dim_schema));
-//        }
-//        Sep sep(stoi(argv[1]), aim_schema, dim_schema, campaign_index,
-//                move(rta_com), move(sep_com));
-//        sep.execute();
-//    }
-//    catch (std::exception& exeption) {
-//        cerr << exeption.what() << endl;
-//        return 3;
-//    }
-//    return 0;
-//}
 #include "Connection.hpp"
 #include <crossbow/allocator.hpp>
 #include <crossbow/program_options.hpp>
@@ -109,21 +30,26 @@
 #include <string>
 #include <iostream>
 
+#include "server/rta/dimension_schema.h"
+#include "server/sep/schema_and_index_builder.h"
+
 using namespace crossbow::program_options;
 using namespace boost::asio;
 
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
-        tell::db::ClientManager<void>& clientManager) {
-    auto conn = new aim::Connection(service, clientManager);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager](const boost::system::error_code &err) {
+        tell::db::ClientManager<void>& clientManager,
+        const AIMSchema &aimSchema,
+        const DimensionSchema &dimensionSchema) {
+    auto conn = new aim::Connection(service, clientManager, aimSchema, dimensionSchema);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, dimensionSchema](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager);
+        accept(service, a, clientManager, aimSchema, dimensionSchema);
     });
 }
 
@@ -132,6 +58,7 @@ int main(int argc, const char** argv) {
     std::string host;
     std::string port("8713");
     std::string logLevel("DEBUG");
+    std::string schemaFile("");
     crossbow::string commitManager;
     crossbow::string storageNodes;
     auto opts = create_options("aim_server",
@@ -140,7 +67,8 @@ int main(int argc, const char** argv) {
             value<'p'>("port", &port, tag::description{"Port to bind to"}),
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
-            value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"})
+            value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
+            value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"})
             );
     try {
         parse(opts, argc, argv);
@@ -153,10 +81,15 @@ int main(int argc, const char** argv) {
         print_help(std::cout, opts);
         return 0;
     }
-    if (numWarehouses == 0) {
-        std::cerr << "Number of warehouses needs to be set" << std::endl;
+
+    if (!schemaFile.size()) {
+        std::cerr << "no schema file!\n";
         return 1;
     }
+
+    SchemaAndIndexBuilder builder(schemaFile.c_str());
+    AIMSchema aimSchema = builder.buildAIMSchema();
+    DimensionSchema dimSchema;
 
     crossbow::allocator::init();
 
@@ -198,7 +131,7 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager);
+        accept(service, a, clientManager, aimSchema, dimSchema);
         service.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
