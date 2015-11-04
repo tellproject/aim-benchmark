@@ -28,8 +28,8 @@ using err_code = boost::system::error_code;
 
 namespace aim {
 
-template<Command C>
-void Client::execute(const typename Signature<C>::arguments& arg) {
+template<Command C, class... Args>
+void RTAClient::execute(const Args&... args) {
     auto now = Clock::now();
     if (now > mEndTime) {
         // Time's up
@@ -44,67 +44,67 @@ void Client::execute(const typename Signature<C>::arguments& arg) {
         auto end = Clock::now();
         mLog.push_back(LogEntry{result.success, result.error, C, now, end});
         run();
-    }, arg);
+    }, args...);
 }
 
-void Client::run() {
+void RTAClient::run() {
     uint8_t currentQuery = mWorkload[mCurrentQueryIdx];
     mCurrentQueryIdx = (mCurrentQueryIdx + 1) / mWorkload.size();
     switch (currentQuery) {
     case 1:
-        {
-            LOG_DEBUG("Start Query 1");
-            Q1In args;
-            rnd.randomQ1(args);
-            execute<Command::Q1>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 1");
+        Q1In args;
+        rnd.randomQ1(args);
+        execute<Command::Q1>(args);
+        break;
+    }
     case 2:
-        {
-            LOG_DEBUG("Start Query 2");
-            Q2In args;
-            rnd.randomQ2(args);
-            execute<Command::Q2>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 2");
+        Q2In args;
+        rnd.randomQ2(args);
+        execute<Command::Q2>(args);
+        break;
+    }
     case 3:
-        {
-            LOG_DEBUG("Start Query 3");
-            execute<Command::Q3>(null);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 3");
+        execute<Command::Q3>();
+        break;
+    }
     case 4:
-        {
-            LOG_DEBUG("Start Query 4");
-            Q4In args;
-            rnd.randomQ4(args);
-            execute<Command::Q4>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 4");
+        Q4In args;
+        rnd.randomQ4(args);
+        execute<Command::Q4>(args);
+        break;
+    }
     case 5:
-        {
-            LOG_DEBUG("Start Query 5");
-            Q5In args;
-            rnd.randomQ5(args);
-            execute<Command::Q5>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 5");
+        Q5In args;
+        rnd.randomQ5(args);
+        execute<Command::Q5>(args);
+        break;
+    }
     case 6:
-        {
-            LOG_DEBUG("Start Query 6");
-            Q6In args;
-            rnd.randomQ6(args);
-            execute<Command::Q6>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 6");
+        Q6In args;
+        rnd.randomQ6(args);
+        execute<Command::Q6>(args);
+        break;
+    }
     case 7:
-        {
-            LOG_DEBUG("Start Query 7");
-            Q7In args;
-            rnd.randomQ7(args);
-            execute<Command::Q7>(args);
-            break;
-        }
+    {
+        LOG_DEBUG("Start Query 7");
+        Q7In args;
+        rnd.randomQ7(args);
+        execute<Command::Q7>(args);
+        break;
+    }
     }
 }
 

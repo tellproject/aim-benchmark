@@ -32,8 +32,6 @@
 #include <crossbow/Serializer.hpp>
 #include <crossbow/string.hpp>
 
-#include "server/sep/event.h"
-
 #define GEN_COMMANDS_ARR(Name, arr) enum class Name {\
     BOOST_PP_ARRAY_ELEM(0, arr) = 1, \
     BOOST_PP_ARRAY_ENUM(BOOST_PP_ARRAY_REMOVE(arr, 0)) \
@@ -70,7 +68,7 @@ struct Signature;
 template<>
 struct Signature<Command::POPULATE_TABLE> {
     using result = std::tuple<bool, crossbow::string>;
-    using arguments = void;
+    using arguments = std::tuple<uint64_t /*lowestSubscriberNum*/, uint64_t /* highestSubscriberNum */>;
 };
 
 template<>
@@ -79,9 +77,27 @@ struct Signature<Command::CREATE_SCHEMA> {
     using arguments = void;
 };
 
+struct Event
+{
+    uint64_t call_id;
+    uint64_t caller_id;
+    uint64_t callee_id;
+    double cost;
+    uint64_t caller_place;
+    uint64_t callee_place;
+    int64_t timestamp;
+    uint32_t duration;
+    bool long_distance;
+};
+
+struct DefaultResult {
+    bool success = true;
+    crossbow::string error;
+};
+
 template<>
 struct Signature<Command::PROCESS_EVENT> {
-    using result = std::tuple<bool, crossbow::string>;
+    using result = DefaultResult;
     using arguments = Event;
 };
 
@@ -96,9 +112,17 @@ struct Q1In {
 };
 
 struct Q1Out {
+    using is_serializable = crossbow::is_serializable;
     bool success = true;
     crossbow::string error;
     double avg;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+        ar & avg;
+    }
 };
 
 template<>
@@ -118,9 +142,17 @@ struct Q2In {
 };
 
 struct Q2Out {
+    using is_serializable = crossbow::is_serializable;
     bool success = true;
     crossbow::string error;
     double max;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+        ar & max;
+    }
 };
 
 template<>
@@ -138,6 +170,7 @@ struct Signature<Command::Q2> {
 struct Q3Out {
     using is_serializable = crossbow::is_serializable;
     struct Q3Tuple {
+        using is_serializable = crossbow::is_serializable;
         double cost_ratio;
         uint32_t number_of_calls_this_week;
 
@@ -154,7 +187,7 @@ struct Q3Out {
 
     template<class Archiver>
     void operator&(Archiver& ar) {
-        ar & success = true;
+        ar & success;
         ar & error;
         ar & results;
     }
@@ -184,6 +217,7 @@ struct Q4In {
 struct Q4Out {
     using is_serializable = crossbow::is_serializable;
     struct Q4Tuple {
+        using is_serializable = crossbow::is_serializable;
         crossbow::string city_name;
         double avg_num_local_calls_week;
         uint64_t sum_duration_local_calls_week;
@@ -202,7 +236,7 @@ struct Q4Out {
 
     template<class Archiver>
     void operator&(Archiver& ar) {
-        ar & success = true;
+        ar & success;
         ar & error;
         ar & results;
     }
@@ -233,6 +267,7 @@ struct Q5In {
 struct Q5Out {
     using is_serializable = crossbow::is_serializable;
     struct Q5Tuple {
+        using is_serializable = crossbow::is_serializable;
         crossbow::string region_name;
         double sum_cost_local_calls_week;
         uint64_t sum_cost_longdistance_calls_week;
@@ -251,7 +286,7 @@ struct Q5Out {
 
     template<class Archiver>
     void operator&(Archiver& ar) {
-        ar & success = true;
+        ar & success;
         ar & error;
         ar & results;
     }
@@ -277,6 +312,7 @@ struct Q6In {
 };
 
 struct Q6Out {
+    using is_serializable = crossbow::is_serializable;
     bool success = true;
     crossbow::string error;
     uint64_t max_local_week_id;
@@ -287,6 +323,18 @@ struct Q6Out {
     uint32_t max_long_week;
     uint64_t max_long_day_id;
     uint32_t max_long_day;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & max_local_week_id;
+        ar & max_local_week;
+        ar & max_local_day_id;
+        ar & max_local_day;
+        ar & max_long_week_id;
+        ar & max_long_week;
+        ar & max_long_day_id;
+        ar & max_long_day;
+    }
 };
 
 template<>
@@ -313,10 +361,19 @@ struct Q7In {
 };
 
 struct Q7Out {
+    using is_serializable = crossbow::is_serializable;
     bool success = true;
     crossbow::string error;
     uint64_t subscriber_id;
     double flat_rate;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+        ar & subscriber_id;
+        ar & flat_rate;
+    }
 };
 
 template<>
@@ -376,7 +433,7 @@ public:
     {
     }
     template<class Callback, class Result>
-    void readResponse(const Callback& callback, size_t bytes_read = 0) {
+    void readResonse(const Callback& callback, size_t bytes_read = 0) {
         auto respSize = *reinterpret_cast<size_t*>(mCurrentRequest.get());
         if (bytes_read >= 8 && respSize == bytes_read) {
             // response read
@@ -397,7 +454,7 @@ public:
                         Result res;
                         callback(ec, res);
                     }
-                    readResponse<Callback, Result>(callback, bytes_read + br);
+                    readResonse<Callback, Result>(callback, bytes_read + br);
                 });
     }
 
@@ -429,7 +486,7 @@ public:
                             callback(ec, res);
                             return;
                         }
-                        readResponse<Callback, ResType>(callback);
+                        readResonse<Callback, ResType>(callback);
                     });
     }
 
@@ -456,15 +513,26 @@ public:
         read();
     }
 private:
-    template<Command C>
-    void execute() {
+    template<Command C, class Callback>
+    typename std::enable_if<std::is_void<typename Signature<C>::arguments>::value, void>::type
+    execute(Callback callback) {
+        mImpl.template execute<C>(callback);
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<!std::is_void<typename Signature<C>::arguments>::value, void>::type
+    execute(Callback callback) {
         using Args = typename Signature<C>::arguments;
-        using Res = typename Signature<C>::result;
-        using IArgs = typename std::conditional<std::is_void<Args>::value, std::tuple<>, Args>::type;
-        IArgs args;
+        Args args;
         crossbow::deserializer des(mBuffer.get() + sizeof(size_t) + sizeof(Command));
         des & args;
-        mImpl.template execute<C>(args, [this](const Res& result) {
+        mImpl.template execute<C>(args, callback);
+    }
+
+    template<Command C>
+    void execute() {
+        using Res = typename Signature<C>::result;
+        execute<C>([this](const Res& result) {
             // Serialize result
             crossbow::sizer sizer;
             sizer & sizer.size;

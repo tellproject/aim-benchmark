@@ -41,24 +41,24 @@ struct LogEntry {
     decltype(start) end;
 };
 
-class RTAClient {
+class SEPClient {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
-    std::vector<uint8_t> mWorkload;
     uint64_t mSubscriberNum;
+    uint64_t mLowest;
+    uint64_t mHighest;
     Random_t rnd;
-    uint8_t mCurrentQueryIdx;
     std::deque<LogEntry> mLog;
     decltype(Clock::now()) mEndTime;
 public:
-    RTAClient(boost::asio::io_service& service, std::vector<uint8_t> workload, uint64_t subscriberNum, decltype(Clock::now()) endTime)
+    SEPClient(boost::asio::io_service& service, uint64_t subscriberNum, uint64_t lowest, uint64_t highest, decltype(Clock::now()) endTime)
         : mSocket(service)
         , mCmds(mSocket)
-        , mWorkload(workload)
         , mSubscriberNum(subscriberNum)
-        , rnd(subscriberNum, workload.size())
-        , mCurrentQueryIdx(rnd.randomQuery())
+        , mLowest(lowest)
+        , mHighest(highest)
+        , rnd(subscriberNum)
         , mEndTime(endTime)
     {}
     Socket& socket() {
@@ -71,11 +71,12 @@ public:
         return mCmds;
     }
     void run();
+    void populate();
     const std::deque<LogEntry>& log() const { return mLog; }
 private:
-    template<Command C, class... Args>
-    void execute(const Args&...);
+    void populate(uint64_t lowest, uint64_t highest);
+    template<Command C>
+    void execute(const typename Signature<C>::arguments& arg);
 };
 
 }
-

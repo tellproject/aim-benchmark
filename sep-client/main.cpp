@@ -20,95 +20,157 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
-#include <chrono>
-#include <cstdint>
-#include <thread>
+#include <crossbow/program_options.hpp>
+#include <crossbow/logger.hpp>
 
-#include "sep-client/SEPClient.h"
-#include "common/logger.h"
-#include "common/system-constants.h"
+#include <boost/asio.hpp>
+#include <boost/system/error_code.hpp>
+#include <string>
+#include <iostream>
+#include <cassert>
+#include <fstream>
 
-void print_sep_client_args(const char* argv[])
-{
-    std::cout << "Experiment-duration: " << argv[1] << '\n'
-              << "Protocol: " << argv[2] << '\n'
-              << "Server-file: " << argv[3] << '\n'
-              << "Number of threads: " << argv[4] << '\n'
-              << "SEP update rate: " << argv[5] << std::endl;
+#include "SEPClient.hpp"
+
+using namespace crossbow::program_options;
+using namespace boost::asio;
+using err_code = boost::system::error_code;
+
+std::vector<std::string> split(const std::string str, const char delim) {
+    std::stringstream ss(str);
+    std::string item;
+    std::vector<std::string> result;
+    while (std::getline(ss, item, delim)) {
+        if (item.empty()) continue;
+        result.push_back(std::move(item));
+    }
+    return result;
 }
 
-void printArgMsg()
-{
-    std::cout << "usage: sep-client <experiment-duration> <protocol> "
-              << "<server-file> <number-of-threads> <frequency>" << std::endl;
-    std::cout << "*experiment duration in seconds" << std::endl;
-    std::cout << "*OPTIONS for protocol: TCP, Inf (Infiniband)" << std::endl;
-    std::cout << "*server-file: each line contains 'host port'" << std::endl;
-    std::cout << "frequency in events per second" << std::endl;
-}
-
-int main(int argc, const char* argv[])
-{
-    if (argc != 6 ) {
-        printArgMsg();
-        return -1;
+int main(int argc, const char** argv) {
+    bool help = false;
+    bool populate = false;
+    uint64_t numSubscribers = 10 * 1024 * 1024;
+    std::string hostList;
+    std::string port("8713");
+    std::string logLevel("DEBUG");
+    std::string outFile("out.csv");
+    size_t numClients = 1;
+    unsigned time = 5*60;
+    auto opts = create_options("SEP_client",
+            value<'h'>("help", &help, tag::description{"print help"})
+            , value<'H'>("hosts", &hostList, tag::description{"Comma-separated list of hosts"})
+            , value<'l'>("log-level", &logLevel, tag::description{"The log level"})
+            , value<'c'>("num-clients", &numClients, tag::description{"Number of Clients to run per host"})
+            , value<'P'>("populate", &populate, tag::description{"Populate the database"})
+            , value<'n'>("num-subscribers", &numSubscribers, tag::description{"Number of subscribers (data size)"})
+            , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
+            , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
+            );
+    try {
+        parse(opts, argc, argv);
+    } catch (argument_not_found& e) {
+        std::cerr << e.what() << std::endl << std::endl;
+        print_help(std::cout, opts);
+        return 1;
+    }
+    if (help) {
+        print_help(std::cout, opts);
+        return 0;
+    }
+    if (hostList.empty()) {
+        std::cerr << "No host\n";
+        return 1;
     }
 
-#ifndef NDEBUG
-    std::cout << "DEBUG\n" << std::endl;
-#endif
-
-    print_sep_client_args(argv);
-    uint64_t experiment_duration(std::stol(argv[1]));
-    std::string protocol_string(argv[2]);
-    NetworkProtocol protocol = (protocol_string.compare("Inf")==0)?
-                NetworkProtocol::Infiniband:
-                NetworkProtocol::TCP;
-
-    std::string server_file(argv[3]);
-    uint8_t number_of_threads(std::stol(argv[4]));
-    // wait time in micro-seconds
-    ulong wait_time = (1000000 * number_of_threads) / (std::stol(argv[5]));
-
-    SEPClient client(number_of_threads, wait_time, server_file, protocol);
-
-    std::cout << "Experiment started. Will wait for " << experiment_duration
-              << " seconds..." << std::endl;
-
-    // wait until experiment is finished
-    std::chrono::high_resolution_clock::time_point current, notified;
-    auto start = std::chrono::high_resolution_clock::now();
-    while (true) {
-        current = std::chrono::high_resolution_clock::now();
-        if (std::chrono::duration_cast<std::chrono::duration<double>>
-                (current - start).count() >= experiment_duration) {
-            break;
+    auto startTime = aim::Clock::now();
+    auto endTime = startTime + std::chrono::seconds(time);
+    crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
+    try {
+        auto hosts = split(hostList, ',');
+        io_service service;
+        auto sumClients = hosts.size() * numClients;
+        std::vector<aim::SEPClient> clients;
+        clients.reserve(sumClients);
+        auto subscribersPerClient = numSubscribers / sumClients;
+        for (decltype(sumClients) i = 0; i < sumClients; ++i) {
+            clients.emplace_back(service, numSubscribers, int16_t(subscribersPerClient * i + 1), int16_t(subscribersPerClient * (i + 1)), endTime);
         }
-        else {
-            // notify user how much time of the experiment has passed
-            long diff = std::chrono::duration_cast<std::chrono::duration
-                    <double>>(current - notified).count();
-            if (diff >= (experiment_duration/100.0)) {
-                notified = std::chrono::high_resolution_clock::now();
-                diff = std::chrono::duration_cast<std::chrono::duration
-                        <double>>(notified - start).count();
-                std::cout << (int) (100.0 * diff / experiment_duration)
-                          << "% completed." << std::endl;
+
+        for (size_t i = 0; i < hosts.size(); ++i) {
+            auto h = hosts[i];
+            auto addr = split(h, ':');
+            assert(addr.size() <= 2);
+            auto p = addr.size() == 2 ? addr[1] : port;
+            ip::tcp::resolver resolver(service);
+            ip::tcp::resolver::iterator iter;
+            if (hostList == "") {
+                iter = resolver.resolve(ip::tcp::resolver::query(port));
+            } else {
+                iter = resolver.resolve(ip::tcp::resolver::query(hostList, port));
             }
-            // sleep for a while
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            for (unsigned j = 0; j < numClients; ++j) {
+                LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
+                boost::asio::connect(clients[i*numClients + j].socket(), iter);
+            }
         }
+
+        if (populate) {
+            auto& cmds = clients[0].commands();
+            cmds.execute<aim::Command::CREATE_SCHEMA>(
+                    [&clients](const err_code& ec,
+                        const std::tuple<bool, crossbow::string>& res){
+                if (ec) {
+                    LOG_ERROR(ec.message());
+                    return;
+                }
+                if (!std::get<0>(res)) {
+                    LOG_ERROR(std::get<1>(res));
+                    return;
+                }
+                for (auto& client : clients) {
+                    client.populate();
+                }
+            });
+        } else {
+            for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
+                auto& client = clients[i];
+                client.run();
+            }
+        }
+        service.run();
+
+        LOG_INFO("Done, writing results");
+        std::ofstream out(outFile.c_str());
+        out << "start,end,transaction,success,error\n";
+        for (const auto& client : clients) {
+            const auto& queue = client.log();
+            for (const auto& e : queue) {
+                crossbow::string tName;
+                switch (e.transaction) {
+                case aim::Command::CREATE_SCHEMA:
+                    tName = "Schema Create";
+                    break;
+                case aim::Command::POPULATE_TABLE:
+                    tName = "Populate";
+                    break;
+                case aim::Command::PROCESS_EVENT:
+                    tName = "Process Event";
+                    break;
+                default:
+                    tName = "Unknown Transaction which should not happen in sep-client";
+                    break;
+                }
+                out << std::chrono::duration_cast<std::chrono::seconds>(e.start - startTime).count()
+                    << std::chrono::duration_cast<std::chrono::seconds>(e.end - startTime).count()
+                    << tName
+                    << (e.success ? "true" : "false")
+                    << e.error
+                    << std::endl;
+            }
+        }
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
     }
-
-    client.stop();
-    client.waitFor();
-
-    auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - start).count();
-    ulong sent_events = client.getSentEvents();
-    std::cout << "Sent " << sent_events << " events in "
-              << (((double) diff) / 1000.0) << " seconds." << std::endl;
-    std::cout << "This makes an effective send-rate of "
-              << (1000.0 * ((double) sent_events)/((double) diff))
-              << " events per second." << std::endl;
 }
+

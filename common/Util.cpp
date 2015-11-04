@@ -48,22 +48,21 @@ Random_t::Random_t(size_t subscriberNum, uint8_t workloadSize) :
 
 }
 
-Event
-Random_t::randomEvent()
+void
+Random_t::randomEvent(Event &e)
 {
     // call-id and timestamp set to current time
+    // the key (caller-id) has to be set elsewhere!
     auto ts = now();
-    Event e;
-    e.setCallId(ts);
-    e.setCalleeId(_ulong_distr(mRandomDevice));
-    e.setCallerId(_ulong_distr(mRandomDevice));
-    e.setTimestamp(ts);
-    e.setDuration(_uint_distr(mRandomDevice));
-    e.setCost(_double_distr(mRandomDevice));
-    e.setLongDistance((_bool_distr(mRandomDevice)));
-    e.setPlaceCaller(_ulong_distr(mRandomDevice));
-    e.setPlaceCallee(_ulong_distr(mRandomDevice));
-    return e;
+    e.call_id = ts;
+//    e.caller_id =_ulong_distr(mRandomDevice);
+    e.callee_id = _ulong_distr(mRandomDevice);
+    e.cost = _double_distr(mRandomDevice);
+    e.caller_place =_ulong_distr(mRandomDevice);
+    e.callee_place = _ulong_distr(mRandomDevice);
+    e.timestamp = ts;
+    e.duration = _uint_distr(mRandomDevice);
+    e.long_distance = _bool_distr(mRandomDevice);
 }
 
 uint8_t Random_t::randomQuery()

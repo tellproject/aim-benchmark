@@ -31,6 +31,8 @@ target_link_libraries(aim_common PUBLIC telldb)
 
 set(SERVER_SRC
     server/main.cpp
+    server/Connection.cpp
+    server/Connection.hpp
     server/sep/communication/AbstractSEPCommunication.cpp
     server/sep/communication/AbstractSEPCommunication.h
     server/sep/communication/TCPSEPCommunication.cpp
@@ -55,8 +57,6 @@ set(SERVER_SRC
     server/sep/conjunct.cpp
     server/sep/conjunct.h
     server/sep/entry_attr_index.h
-    server/sep/event.cpp
-    server/sep/event.h
     server/sep/Math.h
     server/sep/OneDimRTree.h
     server/sep/predicate.cpp
@@ -109,7 +109,7 @@ set(SERVER_SRC
 
 set(SEP_CLIENT_SRC
     sep-client/main.cpp
-    sep-client/SEPClient.h
+    sep-client/SEPClient.hpp
     sep-client/SEPClient.cpp
 )
 
@@ -119,12 +119,14 @@ set(RTA_CLIENT_SRC
     rta-client/RTAClient.cpp
 )
 
-add_executable(aim_server ${SERVER_SRC} ${COMMON_SRC})
+add_executable(aim_server ${SERVER_SRC})
 target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(aim_server PUBLIC telldb)
+target_link_libraries(aim_server aim_common)
 
-add_executable(sep_client ${SEP_CLIENT_SRC} ${COMMON_SRC})
+add_executable(sep_client ${SEP_CLIENT_SRC})
 target_include_directories(sep_client PUBLIC ${Crossbow_INCLUDE_DIRS})
+target_link_libraries(sep_client aim_common)
 
-add_executable(rta_client ${RTA_CLIENT_SRC} ${COMMON_SRC})
+add_executable(rta_client ${RTA_CLIENT_SRC})
 target_include_directories(rta_client PUBLIC ${Crossbow_INCLUDE_DIRS})
+target_link_libraries(rta_client aim_common)

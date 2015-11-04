@@ -26,7 +26,6 @@
 #include <crossbow/singleton.hpp>
 #include <crossbow/string.hpp>
 
-#include "server/sep/event.h"
 #include "Protocol.hpp"
 
 namespace std {
@@ -74,12 +73,19 @@ private:
     IntDistr _q7_subscr_value_type_dist;
 
 public: // Construction
-    Random_t(size_t subscriberNum, uint8_t workloadSize = 1);
+    Random_t(size_t subscriberNum=0, uint8_t workloadSize = 1);
+
 public:
 
     RandomDevice& randomDevice() { return mRandomDevice; }
 
-    Event randomEvent();
+    void randomEvent(Event &e);
+
+    template<class I>
+    I randomWithin(I lower, I upper) {
+        std::uniform_int_distribution<I> dist(lower, upper);
+        return dist(mRandomDevice);
+    }
 
     uint8_t randomQuery();
     void randomQ1(Q1In &arg);

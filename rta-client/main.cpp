@@ -98,7 +98,7 @@ int main(int argc, const char** argv) {
 
         io_service service;
         auto sumClients = hosts.size() * numClients;
-        std::vector<aim::Client> clients;
+        std::vector<aim::RTAClient> clients;
         clients.reserve(sumClients);
         for (decltype(sumClients) i = 0; i < sumClients; ++i) {
             clients.emplace_back(service, workload, numSubscribers, endTime);
@@ -157,6 +157,9 @@ int main(int argc, const char** argv) {
                     break;
                 case aim::Command::Q7:
                     tName = "Q7";
+                    break;
+                default:
+                    tName = "Unknown Transaction which should not happen in rta-client";
                     break;
                 }
                 out << std::chrono::duration_cast<std::chrono::seconds>(e.start - startTime).count()
