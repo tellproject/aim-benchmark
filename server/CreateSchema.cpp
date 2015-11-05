@@ -55,16 +55,16 @@ void createSchema(tell::db::Transaction& transaction, AIMSchema &aimSchema, Dime
         schema.addField(translateType(aimSchema[i].type()), "a_" + crossbow::to_string(i+1), true);
 
     // dimension columns
-    schema.addField(store::FieldType::INT, "subscription_type_id", true);
-    schema.addField(store::FieldType::INT, "subscription_cost_id", true);
-    schema.addField(store::FieldType::INT, "subscription_free_call_mins_id", true);
-    schema.addField(store::FieldType::INT, "subscription_data_id", true);
-    schema.addField(store::FieldType::INT, "city_zip", true);
-    schema.addField(store::FieldType::INT, "region_cty_id", true);
-    schema.addField(store::FieldType::INT, "region_state_id", true);
-    schema.addField(store::FieldType::INT, "category_id", true);
-    schema.addField(store::FieldType::INT, "value_type_id", true);
-    schema.addField(store::FieldType::INT, "value_type_threshold_id", true);
+    schema.addField(store::FieldType::SMALLINT, "subscription_type_id", true);
+    schema.addField(store::FieldType::SMALLINT, "subscription_cost_id", true);
+    schema.addField(store::FieldType::SMALLINT, "subscription_free_call_mins_id", true);
+    schema.addField(store::FieldType::SMALLINT, "subscription_data_id", true);
+    schema.addField(store::FieldType::SMALLINT, "city_zip", true);
+    schema.addField(store::FieldType::SMALLINT, "region_cty_id", true);
+    schema.addField(store::FieldType::SMALLINT, "region_state_id", true);
+    schema.addField(store::FieldType::SMALLINT, "category_id", true);
+    schema.addField(store::FieldType::SMALLINT, "value_type_id", true);
+    schema.addField(store::FieldType::SMALLINT, "value_type_threshold_id", true);
 
     transaction.createTable("wt", schema);
 }

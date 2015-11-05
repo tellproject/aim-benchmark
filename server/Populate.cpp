@@ -29,6 +29,7 @@
 #include <limits>
 
 #include <common/Util.hpp>
+#include <common/dimension-tables.h>
 #include <common/dimension-tables-mapping.h>
 
 using namespace tell::db;
@@ -108,14 +109,22 @@ void Populator::populateWideTable(tell::db::Transaction &transaction,
     for (uint64_t i = lowest; i <= highest; ++i) {
         tuple["subscriber_id"] = Field(static_cast<int64_t>(i));
         tuple["last_updated"] = Field(now());
-        tuple["subscription_type_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+
+        // subscription type
+        uint16_t subscriptionType = rand.randomWithin<int32_t>(0, subscription_types.size()-1);
+        tuple["subscription_type_id"] = Field(subscription_type_to_id[subscription_types[subscriptionType]]);
+
+        //TODO: continue here!!!
         tuple["subscription_cost_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         tuple["subscription_free_call_mins_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         tuple["subscription_data_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+
         tuple["city_zip"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         tuple["region_cty_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         tuple["region_state_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+
         tuple["category_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+
         tuple["value_type_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         tuple["value_type_threshold_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         transaction.insert(tId, tell::db::key_t{uint64_t(i)}, tuple);

@@ -100,7 +100,7 @@ Q2Out Transactions::q2Transaction(tell::db::Transaction& tx, const Q2In& in)
 //    }
 }
 
-Q3Out q3Transaction(tell::db::Transaction& tx)
+Q3Out Transactions::q3Transaction(tell::db::Transaction& tx)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -165,7 +165,7 @@ Q3Out q3Transaction(tell::db::Transaction& tx)
 //    }
 }
 
-Q4Out q4Transaction(tell::db::Transaction& tx, const Q4In& in)
+Q4Out Transactions::q4Transaction(tell::db::Transaction& tx, const Q4In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -211,7 +211,7 @@ Q4Out q4Transaction(tell::db::Transaction& tx, const Q4In& in)
 //    }
 }
 
-Q5Out q5Transaction(tell::db::Transaction& tx, const Q5In& in)
+Q5Out Transactions::q5Transaction(tell::db::Transaction& tx, const Q5In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -270,7 +270,7 @@ Q5Out q5Transaction(tell::db::Transaction& tx, const Q5In& in)
 //    }
 }
 
-Q6Out q6Transaction(tell::db::Transaction& tx, const Q6In& in)
+Q6Out Transactions::q6Transaction(tell::db::Transaction& tx, const Q6In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -332,7 +332,7 @@ Q6Out q6Transaction(tell::db::Transaction& tx, const Q6In& in)
 //    }
 }
 
-Q7Out q7Transaction(tell::db::Transaction& tx, const Q7In& in)
+Q7Out Transactions::q7Transaction(tell::db::Transaction& tx, const Q7In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();

@@ -135,8 +135,8 @@ public:
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q3, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+    execute(const Callback& callback) {
+        auto transaction = [this, callback](tell::db::Transaction& tx) {
             typename Signature<C>::result res = mTransactions.q3Transaction(tx);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -194,6 +194,20 @@ public:
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
             typename Signature<C>::result res = mTransactions.q7Transaction(tx, args);
+            mService.post([this, res, callback]() {
+                mFiber->wait();
+                mFiber.reset(nullptr);
+                callback(res);
+            });
+        };
+        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+            typename Signature<C>::result res;// = mTransactions.q7Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
                 mFiber.reset(nullptr);

@@ -10,7 +10,9 @@ set(COMMON_SRC
     common/Util.cpp
     common/serialization.h
     common/dimension-tables-mapping.h
+    common/dimension-tables-mapping.cpp
     common/dimension-tables.h
+    common/dimension-tables.cpp
     common/dimension-tables-unique-values.h
     common/dimension-tables-unique-values.cpp
 )
@@ -93,7 +95,7 @@ set(RTA_CLIENT_SRC
 
 add_executable(aim_server ${SERVER_SRC})
 target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(aim_server aim_common)
+target_link_libraries(aim_server aim_common dl)
 
 add_executable(sep_client ${SEP_CLIENT_SRC})
 target_include_directories(sep_client PUBLIC ${Crossbow_INCLUDE_DIRS})

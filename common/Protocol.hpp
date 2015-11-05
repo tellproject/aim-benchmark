@@ -91,8 +91,15 @@ struct Event
 };
 
 struct DefaultResult {
+    using is_serializable = crossbow::is_serializable;
     bool success = true;
     crossbow::string error;
+
+    template<class Archiver>
+    void operator&(Archiver& ar) {
+        ar & success;
+        ar & error;
+    }
 };
 
 template<>
