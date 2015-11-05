@@ -207,11 +207,10 @@ public:
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res;// = mTransactions.q7Transaction(tx, args);
-            mService.post([this, res, callback]() {
+            mService.post([this, callback]() {
                 mFiber->wait();
                 mFiber.reset(nullptr);
-                callback(res);
+                callback();
             });
         };
         mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));

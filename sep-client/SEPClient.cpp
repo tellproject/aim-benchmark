@@ -37,13 +37,13 @@ void SEPClient::execute(const typename Signature<C>::arguments &arg) {
         return;
     }
     mCmds.execute<C>(
-      [this, now](const err_code &ec, typename Signature<C>::result result) {
+      [this, now](const err_code &ec) {
           if (ec) {
               LOG_ERROR("Error: " + ec.message());
               return;
           }
           auto end = Clock::now();
-          mLog.push_back(LogEntry{result.success, result.error, C, now, end});
+          mLog.push_back(LogEntry{true, "", C, now, end});
           run();
       },
       arg);
