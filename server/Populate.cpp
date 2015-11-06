@@ -111,22 +111,46 @@ void Populator::populateWideTable(tell::db::Transaction &transaction,
         tuple["last_updated"] = Field(now());
 
         // subscription type
-        uint16_t subscriptionType = rand.randomWithin<int32_t>(0, subscription_types.size()-1);
-        tuple["subscription_type_id"] = Field(subscription_type_to_id[subscription_types[subscriptionType]]);
+        int16_t subscriptionId = rand.randomWithin<int16_t>(
+                0, subscription_types.size()-1);
+        tuple["subscription_type_id"] = Field(subscription_type_to_id[
+                subscription_types[subscriptionId]]);
+        tuple["subscription_cost_id"] = Field(subscription_cost_to_id[
+                subscription_cost[subscriptionId]]);
+        tuple["subscription_free_call_mins_id"] = Field(
+                subscription_free_call_mins_to_id[subscription_free_call_mins[
+                        subscriptionId]]);
+        tuple["subscription_data_id"] = Field(subscription_data_to_id[
+                subscription_data[subscriptionId]]);
 
-        //TODO: continue here!!!
-        tuple["subscription_cost_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
-        tuple["subscription_free_call_mins_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
-        tuple["subscription_data_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+        // city
+        int16_t zipId = rand.randomWithin<int16_t>(
+                0, region_zip.size()-1);
+        tuple["city_zip"] = Field(region_zip_to_id[
+                region_zip[zipId]]);
+        tuple["region_cty_id"] = Field(region_city_to_id[
+                region_city[zipId]]);
+        tuple["region_state_id"] = Field(region_state_to_id[
+                region_state[zipId]]);
+        tuple["region_country_id"] = Field(region_country_to_id[
+                region_country[zipId]]);
+        tuple["region_region_id"] = Field(region_region_to_id[
+                region_region[zipId]]);
 
-        tuple["city_zip"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
-        tuple["region_cty_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
-        tuple["region_state_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+        // category
+        int16_t categoryId = rand.randomWithin<int16_t>(
+                0, subscriber_category_type.size()-1);
+        tuple["category_id"] = Field(subscriber_category_type_to_id[
+                subscriber_category_type[categoryId]]);
 
-        tuple["category_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
+        // value type
+        int16_t valueTypeId = rand.randomWithin<int16_t>(
+                0, subscriber_value_type.size()-1);
+        tuple["value_type_id"] = Field(subscriber_value_type_to_id[
+                subscriber_value_type[valueTypeId]]);
+        tuple["value_type_threshold_id"] = Field(subscriber_value_threshold_to_id[
+                subscriber_value_threshold[valueTypeId]]);
 
-        tuple["value_type_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
-        tuple["value_type_threshold_id"] = Field(rand.randomWithin<int32_t>(0, subscription_type_to_id.size()));
         transaction.insert(tId, tell::db::key_t{uint64_t(i)}, tuple);
     }
 }

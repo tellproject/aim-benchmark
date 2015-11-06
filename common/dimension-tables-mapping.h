@@ -28,35 +28,35 @@
 /*
  * Mappings for Subscription Type Dimension Table.
  */
-extern std::unordered_map<std::string, uint16_t> subscription_type_to_id;
+extern std::unordered_map<std::string, int16_t> subscription_type_to_id;
 
-extern std::unordered_map<std::string, uint16_t> subscription_cost_to_id;
+extern std::unordered_map<std::string, int16_t> subscription_cost_to_id;
 
-extern std::unordered_map<std::string, uint16_t> subscription_free_call_mins_to_id;
+extern std::unordered_map<std::string, int16_t> subscription_free_call_mins_to_id;
 
-extern std::unordered_map<std::string, uint16_t> subscription_data_to_id;
+extern std::unordered_map<std::string, int16_t> subscription_data_to_id;
 
 /*
  * Mappings for Region Info Dimension Table.
  */
-extern std::unordered_map<std::string, uint16_t> region_zip_to_id;
+extern std::unordered_map<std::string, int16_t> region_zip_to_id;
 
-extern std::unordered_map<std::string, uint16_t> region_city_to_id;
+extern std::unordered_map<std::string, int16_t> region_city_to_id;
 
-extern std::unordered_map<std::string, uint16_t> region_state_to_id;
+extern std::unordered_map<std::string, int16_t> region_state_to_id;
 
-extern std::unordered_map<std::string, uint16_t> region_country_to_id;
+extern std::unordered_map<std::string, int16_t> region_country_to_id;
 
-extern std::unordered_map<std::string, uint16_t> region_region_to_id;
+extern std::unordered_map<std::string, int16_t> region_region_to_id;
 
 /*
  * Mappings for Subscriber Category Table.
  */
-extern std::unordered_map<std::string, uint16_t> subscriber_category_type_to_id;
+extern std::unordered_map<std::string, int16_t> subscriber_category_type_to_id;
 
 /*
  * Mappings for Subscriber Value Table.
  */
-extern std::unordered_map<std::string, uint16_t> subscriber_value_type_to_id;
+extern std::unordered_map<std::string, int16_t> subscriber_value_type_to_id;
 
-extern std::unordered_map<std::string, uint16_t> subscriber_value_threshold_to_id;
+extern std::unordered_map<std::string, int16_t> subscriber_value_threshold_to_id;
