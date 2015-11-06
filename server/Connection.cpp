@@ -26,16 +26,43 @@
 #include "Transactions.hpp"
 
 #include <telldb/Transaction.hpp>
+#include <memory>
 
 using namespace boost::asio;
 
 namespace aim {
+
+struct EventProcessor  : public std::enable_shared_from_this<EventProcessor> {
+private:
+    boost::asio::io_service& mService;
+    std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
+public:
+    std::vector<Event> events;
+    EventProcessor(boost::asio::io_service& service)
+        : mService(service)
+    {}
+    void runTransaction(const tell::db::Transaction& tx) {
+        //for (const auto& event : events) {
+        //    // process event
+        //}
+        mService.post([this]() {
+            mFiber->wait();
+            mFiber.reset(nullptr);
+        });
+    }
+    void start(tell::db::ClientManager<void>& clientManager) {
+        auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(), std::placeholders::_1);
+        mFiber.reset(new tell::db::TransactionFiber<void>(clientManager.startTransaction(fun)));
+    }
+};
 
 class CommandImpl {
     server::Server<CommandImpl> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<void>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
+    std::vector<Event> mEventBatch;
+    unsigned mEventBatchSize;
     Transactions mTransactions;
     const AIMSchema &mAIMSchema;
     const DimensionSchema &mDimensionSchema;
@@ -44,16 +71,32 @@ public:
             boost::asio::io_service& service,
             tell::db::ClientManager<void>& clientManager,
             const AIMSchema &aimSchema,
-            const DimensionSchema &dimensionSchema)
+            const DimensionSchema &dimensionSchema,
+            unsigned eventBatchSize)
         : mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
+        , mEventBatchSize(eventBatchSize)
         , mAIMSchema(aimSchema)
         , mDimensionSchema(dimensionSchema)
-    {}
+    {
+        mEventBatch.reserve(mEventBatchSize);
+    }
 
     void run() {
         mServer.run();
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        if (mEventBatch.size() >= mEventBatchSize) {
+            // execute transaction
+            auto processor = std::make_shared<EventProcessor>(mService);
+            processor->events.swap(mEventBatch);
+            mEventBatch.reserve(mEventBatchSize);
+        }
+        mEventBatch.push_back(args);
     }
 
     template<Command C, class Callback>
@@ -203,27 +246,15 @@ public:
         mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
     }
 
-    template<Command C, class Callback>
-    typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            mService.post([this, callback]() {
-                mFiber->wait();
-                mFiber.reset(nullptr);
-                callback();
-            });
-        };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
-    }
-
 };
 
 Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<void>& clientManager,
                const AIMSchema &aimSchema,
-               const DimensionSchema &dimensionSchema)
+               const DimensionSchema &dimensionSchema,
+               unsigned eventBatchSize)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, dimensionSchema))
+    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, dimensionSchema, eventBatchSize))
 {}
 
 Connection::~Connection() = default;

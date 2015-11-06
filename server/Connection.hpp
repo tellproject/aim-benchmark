@@ -40,7 +40,8 @@ class Connection {
     std::unique_ptr<CommandImpl> mImpl;
 public:
     Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager,
-               const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema);
+               const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema,
+               unsigned eventBatchSize);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();

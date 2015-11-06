@@ -40,16 +40,17 @@ void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
         tell::db::ClientManager<void>& clientManager,
         const AIMSchema &aimSchema,
-        const DimensionSchema &dimensionSchema) {
-    auto conn = new aim::Connection(service, clientManager, aimSchema, dimensionSchema);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, dimensionSchema](const boost::system::error_code &err) {
+        const DimensionSchema &dimensionSchema,
+        unsigned eventBatchSize) {
+    auto conn = new aim::Connection(service, clientManager, aimSchema, dimensionSchema, eventBatchSize);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, dimensionSchema, eventBatchSize](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager, aimSchema, dimensionSchema);
+        accept(service, a, clientManager, aimSchema, dimensionSchema, eventBatchSize);
     });
 }
 
@@ -61,6 +62,7 @@ int main(int argc, const char** argv) {
     std::string schemaFile("");
     crossbow::string commitManager;
     crossbow::string storageNodes;
+    unsigned eventBatchSize = 100u;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
@@ -68,7 +70,8 @@ int main(int argc, const char** argv) {
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
-            value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"})
+            value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"}),
+            value<'b'>("batch-size", &eventBatchSize, tag::description{"Size of event batches"})
             );
     try {
         parse(opts, argc, argv);
@@ -131,7 +134,7 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager, aimSchema, dimSchema);
+        accept(service, a, clientManager, aimSchema, dimSchema, eventBatchSize);
         service.run();
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
