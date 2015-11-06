@@ -35,13 +35,13 @@ namespace aim {
 struct EventProcessor  : public std::enable_shared_from_this<EventProcessor> {
 private:
     boost::asio::io_service& mService;
-    std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
+    std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
 public:
     std::vector<Event> events;
     EventProcessor(boost::asio::io_service& service)
         : mService(service)
     {}
-    void runTransaction(const tell::db::Transaction& tx) {
+    void runTransaction(const tell::db::Transaction& tx, Context& context) {
         //for (const auto& event : events) {
         //    // process event
         //}
@@ -50,17 +50,17 @@ public:
             mFiber.reset(nullptr);
         });
     }
-    void start(tell::db::ClientManager<void>& clientManager) {
-        auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(), std::placeholders::_1);
-        mFiber.reset(new tell::db::TransactionFiber<void>(clientManager.startTransaction(fun)));
+    void start(tell::db::ClientManager<Context>& clientManager) {
+        auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(), std::placeholders::_1, std::placeholders::_2);
+        mFiber.reset(new tell::db::TransactionFiber<Context>(clientManager.startTransaction(fun)));
     }
 };
 
 class CommandImpl {
     server::Server<CommandImpl> mServer;
     boost::asio::io_service& mService;
-    tell::db::ClientManager<void>& mClientManager;
-    std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
+    tell::db::ClientManager<Context>& mClientManager;
+    std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
     std::vector<Event> mEventBatch;
     unsigned mEventBatchSize;
     Transactions mTransactions;
@@ -69,7 +69,7 @@ class CommandImpl {
 public:
     CommandImpl(boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
-            tell::db::ClientManager<void>& clientManager,
+            tell::db::ClientManager<Context>& clientManager,
             const AIMSchema &aimSchema,
             const DimensionSchema &dimensionSchema,
             unsigned eventBatchSize)
@@ -102,7 +102,7 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
     execute(const Callback callback) {
-        auto transaction = [this, callback](tell::db::Transaction& tx){
+        auto transaction = [this, callback](tell::db::Transaction& tx, Context& context){
            /* bool success;
             crossbow::string msg;
             try {
@@ -120,13 +120,13 @@ public:
                 callback(std::make_tuple(success, msg));
             })*/;
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::POPULATE_TABLE, void>::type
     execute(std::tuple<uint64_t /*lowestSubscriberNum*/, uint64_t /* highestSubscriberNum */> args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             bool success;
             crossbow::string msg;
             try {
@@ -145,13 +145,13 @@ public:
                 callback(std::make_pair(success, msg));
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q1, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q1Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -159,13 +159,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q2, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q2Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -173,13 +173,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q3, void>::type
     execute(const Callback& callback) {
-        auto transaction = [this, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q3Transaction(tx);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -187,13 +187,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q4, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q4Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -201,13 +201,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q5, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q5Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -215,13 +215,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q6, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q6Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -229,13 +229,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::Q7, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        auto transaction = [this, args, callback](tell::db::Transaction& tx) {
+        auto transaction = [this, args, callback](tell::db::Transaction& tx, Context& context) {
             typename Signature<C>::result res = mTransactions.q7Transaction(tx, args);
             mService.post([this, res, callback]() {
                 mFiber->wait();
@@ -243,13 +243,13 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<Context>(mClientManager.startTransaction(transaction)));
     }
 
 };
 
 Connection::Connection(boost::asio::io_service& service,
-                tell::db::ClientManager<void>& clientManager,
+                tell::db::ClientManager<Context>& clientManager,
                const AIMSchema &aimSchema,
                const DimensionSchema &dimensionSchema,
                unsigned eventBatchSize)

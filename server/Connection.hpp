@@ -33,13 +33,18 @@
 
 namespace aim {
 
+struct Context {
+    bool isInitialized = false;
+    uint16_t foo = std::numeric_limits<uint16_t>::max();
+};
+
 class CommandImpl;
 
 class Connection {
     boost::asio::ip::tcp::socket mSocket;
     std::unique_ptr<CommandImpl> mImpl;
 public:
-    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager,
+    Connection(boost::asio::io_service& service, tell::db::ClientManager<Context>& clientManager,
                const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema,
                unsigned eventBatchSize);
     ~Connection();
