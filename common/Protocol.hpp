@@ -299,7 +299,8 @@ struct Signature<Command::Q5> {
  * the longest call in this day and this week for local and
  * long distance calls. We are interested in subscribers
  * residing in a specific country and report subscriber-id
- * and length of the call.
+ * and length of the call. If several subscribers have the
+ * max, we want to report the one with the lowest subscriber-id.
  */
 
 struct Q6In {
@@ -314,10 +315,10 @@ struct Q6Out {
     uint32_t max_local_week;
     uint64_t max_local_day_id;
     uint32_t max_local_day;
-    uint64_t max_long_week_id;
-    uint32_t max_long_week;
-    uint64_t max_long_day_id;
-    uint32_t max_long_day;
+    uint64_t max_distant_week_id;
+    uint32_t max_distant_week;
+    uint64_t max_distant_day_id;
+    uint32_t max_distant_day;
 
     template<class Archiver>
     void operator&(Archiver& ar) {
@@ -325,10 +326,10 @@ struct Q6Out {
         ar & max_local_week;
         ar & max_local_day_id;
         ar & max_local_day;
-        ar & max_long_week_id;
-        ar & max_long_week;
-        ar & max_long_day_id;
-        ar & max_long_day;
+        ar & max_distant_week_id;
+        ar & max_distant_week;
+        ar & max_distant_day_id;
+        ar & max_distant_day;
     }
 };
 

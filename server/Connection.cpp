@@ -98,21 +98,45 @@ public:
             auto tellSchema = tx.getSchema(wideTable);
 
             context.scanMemoryMananger = scanMemoryManager;
+
+            context.subscriberId = tellSchema.idOf("subscriber_id");
+
             context.callsSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
             context.callsSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+
             context.durSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
             context.durSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::DUR, AggrFun::SUM,FilterType::LOCAL, WindowLength::WEEK));
-            context.isInitialized = true;
+
+            context.durMaxLocalWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::WEEK));
+            context.durMaxLocalDay = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::DAY));
+            context.durMaxDistantWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::WEEK));
+            context.durMaxDistantDay = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::DAY));
+
             context.costMaxAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::COST, AggrFun::MAX, FilterType::NO, WindowLength::WEEK));
             context.costSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+            context.costSumLocalWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::COST, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
+            context.costSumDistantWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::COST, AggrFun::SUM, FilterType::NONLOCAL, WindowLength::WEEK));
+
+            context.subscriptionTypeId = tellSchema.idOf("subscription_type_id");
+
             context.regionZip = tellSchema.idOf("city_zip");
             context.regionCity = tellSchema.idOf("region_cty_id");
+            context.regionCountry = tellSchema.idOf("region_country_id");
+            context.regionRegion = tellSchema.idOf("region_region_id");
+
+            context.isInitialized = true;
         }
     }
 
