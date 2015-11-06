@@ -27,11 +27,19 @@
 #include <common/Protocol.hpp>
 
 #include <telldb/TellDB.hpp>
+#include <tellstore/ScanMemory.hpp>
 
 #include "server/sep/aim_schema.h"
 #include "server/rta/dimension_schema.h"
 
 namespace aim {
+
+struct Context {
+    bool isInitialized = false;
+    tell::store::ScanMemoryManager *scanMemoryMananger;
+    id_t callsSumLocalWeek = 0;
+    id_t durSumAllWeek = 0;
+};
 
 class CommandImpl;
 
@@ -39,7 +47,7 @@ class Connection {
     boost::asio::ip::tcp::socket mSocket;
     std::unique_ptr<CommandImpl> mImpl;
 public:
-    Connection(boost::asio::io_service& service, tell::db::ClientManager<void>& clientManager,
+    Connection(boost::asio::io_service& service, tell::db::ClientManager<Context>& clientManager,
                const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema,
                unsigned eventBatchSize);
     ~Connection();

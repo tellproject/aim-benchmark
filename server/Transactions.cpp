@@ -25,99 +25,81 @@
 #include <crossbow/enum_underlying.hpp>
 
 #include <tellstore/Table.hpp>
+#include <tellstore/ScanMemory.hpp>
+
+#include "Connection.hpp"
 
 namespace aim {
 
 using namespace tell::db;
 using namespace tell::store;
 
-
-inline void Transactions::initializeIfNecessary(Transaction &tx, Schema &schema)
+Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In& in)
 {
+    Q1Out result;
 
-    callsSumLocalWeek = schema.idOf(mAimSchema.getName(
-            Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
-    durSumAllWeek = schema.idOf(mAimSchema.getName(
-            Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
+        auto schema = tx.getSchema(wideTable);
+
+        uint32_t selectionLength = 24;
+        std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+        crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+        selectionWriter.write<uint64_t>(0x1u);
+        selectionWriter.write<uint16_t>(context.callsSumLocalWeek);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(in.alpha);
+
+        uint32_t aggregationLength = 8;
+        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+        aggregationWriter.write<uint16_t>(context.durSumAllWeek);
+        aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::SUM));
+        aggregationWriter.write<uint16_t>(context.durSumAllWeek);
+        aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::CNT));
+
+        Schema resultSchema(schema.type());
+        resultSchema.addField(FieldType::BIGINT, "sum", true);
+        resultSchema.addField(FieldType::INT, "cnt", true);
+        Table resultTable(wideTable.value, std::move(resultSchema));
+
+        auto &snapshot = tx.snapshot();
+        auto &clientHandle = tx.getHandle();
+        auto scanIterator = clientHandle.scan(resultTable, snapshot,
+                *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
+                selection.get(), aggregationLength, aggregation.get());
+
+        if (scanIterator->hasNext()) {
+            const char* tuple;
+            size_t tupleLength;
+            std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+            result.avg = resultTable.field<int64_t>("sum", tuple);
+            result.avg /= resultTable.field<int32_t>("cnt", tuple);
+            result.success = true;
+        }
+
+        if (scanIterator->error()) {
+            result.error = crossbow::to_string(scanIterator->error().value());
+            result.success = false;
+        }
+
+        tx.commit();
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
 }
 
-Q1Out Transactions::q1Transaction(Transaction& tx, const Q1In& in, ScanMemoryManager *memoryManager)
-{
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    auto schema = tx.getSchema(wideTable);
-    initializeIfNecessary(tx, schema);
-
-    uint32_t selectionLength = 24;
-    std::unique_ptr<char[]> selection(new char[selectionLength]);
-
-    crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-    selectionWriter.write<uint64_t>(0x1u);
-    selectionWriter.write<uint16_t>(callsSumLocalWeek);
-    selectionWriter.write<uint16_t>(0x1u);
-    selectionWriter.align(sizeof(uint64_t));
-    selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
-    selectionWriter.write<uint8_t>(0x0u);
-    selectionWriter.align(sizeof(uint32_t));
-    selectionWriter.write<int32_t>(in.alpha);
-
-    uint32_t aggregationLength = 8;
-    std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
-
-    crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
-    aggregationWriter.write<uint16_t>(durSumAllWeek);
-    aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::SUM));
-    aggregationWriter.write<uint16_t>(durSumAllWeek);
-    aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::CNT));
-
-    Schema resultSchema(schema.type());
-    resultSchema.addField(FieldType::BIGINT, "sum", true);
-    resultSchema.addField(FieldType::INT, "cnt", true);
-    Table resultTable(wideTable.value, std::move(resultSchema));
-
-    auto &snapshot = tx.snapshot();
-    auto &clientHandle = tx.getHandle();
-//    auto scanIterator = clientHandle.scan(resultTable, snapshot, clientHandle., ScanQueryType::AGGREGATION, selectionLength,
-//            selection.get(), aggregationLength, aggregation.get());
-
-
-    // TODO: implement
-    Q1Out res;
-    return res;
-//    void
-//    Query1ServerObject::processBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        assert(bucket.num_of_records == RECORDS_PER_BUCKET);
-//        auto avg = q1_simple<RECORDS_PER_BUCKET>(_calls_sum_local_week.get(bucket), _alpha,
-//                                                 _dur_sum_all_week.get(bucket));
-//        _sums[thread_id] += avg.sum;
-//        _counts[thread_id] += avg.count;
-//    }
-
-//    void
-//    Query1ServerObject::processLastBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        auto avg = q1_simple(_calls_sum_local_week.get(bucket), _alpha,
-//                             _dur_sum_all_week.get(bucket),
-//                             bucket.num_of_records);
-
-//        _sums[thread_id] += avg.sum;
-//        _counts[thread_id] += avg.count;
-//    }
-
-//    auto
-//    Query1ServerObject::popResult() -> std::pair<std::vector<char>, Status>
-//    {
-//        uint64_t sum = std::accumulate(_sums.begin(), _sums.end(), uint64_t(0));
-//        uint32_t count = std::accumulate(_counts.begin(), _counts.end(), uint32_t(0));
-//        std::vector<char> resultBuf(sizeof(sum) + sizeof(count));
-//        *(reinterpret_cast<decltype(sum) *>(resultBuf.data())) = sum;
-//        *(reinterpret_cast<decltype(count) *>(&resultBuf[sizeof(sum)])) = count;
-//        return std::make_pair(std::move(resultBuf), Status::DONE);
-//    }
-}
-
-Q2Out Transactions::q2Transaction(Transaction& tx, const Q2In& in)
+Q2Out Transactions::q2Transaction(Transaction& tx, Context &context, const Q2In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -152,7 +134,7 @@ Q2Out Transactions::q2Transaction(Transaction& tx, const Q2In& in)
 //    }
 }
 
-Q3Out Transactions::q3Transaction(Transaction& tx)
+Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -217,7 +199,7 @@ Q3Out Transactions::q3Transaction(Transaction& tx)
 //    }
 }
 
-Q4Out Transactions::q4Transaction(Transaction& tx, const Q4In& in)
+Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -263,7 +245,7 @@ Q4Out Transactions::q4Transaction(Transaction& tx, const Q4In& in)
 //    }
 }
 
-Q5Out Transactions::q5Transaction(Transaction& tx, const Q5In& in)
+Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -322,7 +304,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, const Q5In& in)
 //    }
 }
 
-Q6Out Transactions::q6Transaction(Transaction& tx, const Q6In& in)
+Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -384,7 +366,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, const Q6In& in)
 //    }
 }
 
-Q7Out Transactions::q7Transaction(Transaction& tx, const Q7In& in)
+Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();

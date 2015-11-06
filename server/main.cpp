@@ -37,9 +37,10 @@
 using namespace crossbow::program_options;
 using namespace boost::asio;
 
+
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
-        tell::db::ClientManager<void>& clientManager,
+        tell::db::ClientManager<aim::Context>& clientManager,
         const AIMSchema &aimSchema,
         const DimensionSchema &dimensionSchema,
         unsigned eventBatchSize) {
@@ -105,7 +106,7 @@ int main(int argc, const char** argv) {
     tell::store::ClientConfig config;
     config.commitManager = config.parseCommitManager(commitManager);
     config.tellStore = config.parseTellStore(storageNodes);
-    tell::db::ClientManager<void> clientManager(config);
+    tell::db::ClientManager<aim::Context> clientManager(config);
     clientManager.allocateScanMemory(
             config.tellStore.size() * processingThreads, scanBlockSize);
     try {
