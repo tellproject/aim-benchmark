@@ -27,7 +27,11 @@
 #include <tellstore/Table.hpp>
 #include <tellstore/ScanMemory.hpp>
 
+#include <map>
+
 #include "Connection.hpp"
+
+#include <common/dimension-tables-unique-values.h>
 
 namespace aim {
 
@@ -81,7 +85,9 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
             size_t tupleLength;
             std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
             result.avg = resultTable.field<int64_t>("sum", tuple);
-            result.avg /= resultTable.field<int32_t>("cnt", tuple);
+            int32_t cnt = resultTable.field<int32_t>("cnt", tuple);
+            if (cnt != 0)   // don-t divide by zero, report 0!
+                result.avg /= cnt;
             result.success = true;
         }
 
@@ -101,148 +107,354 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
 
 Q2Out Transactions::q2Transaction(Transaction& tx, Context &context, const Q2In& in)
 {
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    // TODO: implement
-    Q2Out res;
-    return res;
-//    void
-//    Query2ServerObject::processBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        assert(bucket.num_of_records == RECORDS_PER_BUCKET);
-//        auto result = q2_simd<RECORDS_PER_BUCKET>(_cost_max_all_week.get(bucket),
-//                                                  _calls_sum_all_week.get(bucket), _alpha);
-//        _maxs[thread_id] = std::max(_maxs[thread_id], result);
-//    }
+    Q2Out result;
 
-//    void
-//    Query2ServerObject::processLastBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        auto result = q2_simple(_cost_max_all_week.get(bucket),
-//                                _calls_sum_all_week.get(bucket),
-//                                _alpha, bucket.num_of_records);
-//        _maxs[thread_id] = std::max(_maxs[thread_id], result);
-//    }
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
+        auto schema = tx.getSchema(wideTable);
 
-//    auto
-//    Query2ServerObject::popResult() -> std::pair<std::vector<char>, Status>
-//    {
-//        double result = *std::max_element(_maxs.begin(), _maxs.end());
-//        std::vector<char> resultBuf(sizeof(result));
-//        *(reinterpret_cast<decltype(result)*>(resultBuf.data())) = result;
-//        return std::make_pair(std::move(resultBuf), Status::DONE);
-//    }
+        uint32_t selectionLength = 24;
+        std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+        crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+        selectionWriter.write<uint64_t>(0x1u);
+        selectionWriter.write<uint16_t>(context.callsSumAllWeek);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(in.alpha);
+
+        uint32_t aggregationLength = 4;
+        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+        aggregationWriter.write<uint16_t>(context.costMaxAllWeek);
+        aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::MAX));
+
+        Schema resultSchema(schema.type());
+        resultSchema.addField(FieldType::DOUBLE, "max", true);
+        Table resultTable(wideTable.value, std::move(resultSchema));
+
+        auto &snapshot = tx.snapshot();
+        auto &clientHandle = tx.getHandle();
+        auto scanIterator = clientHandle.scan(resultTable, snapshot,
+                *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
+                selection.get(), aggregationLength, aggregation.get());
+
+        if (scanIterator->hasNext()) {
+            const char* tuple;
+            size_t tupleLength;
+            std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+            result.max = resultTable.field<double>("max", tuple);
+            result.success = true;
+        }
+
+        if (scanIterator->error()) {
+            result.error = crossbow::to_string(scanIterator->error().value());
+            result.success = false;
+        }
+
+        tx.commit();
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
 }
 
 Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
 {
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    // TODO: implement
-    Q3Out res;
-    return res;
-//    void
-//    Query3ServerObject::processBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        assert(bucket.num_of_records == RECORDS_PER_BUCKET);
-//        q3_simple<RECORDS_PER_BUCKET>(_cost_sum_all_week.get(bucket),
-//                                      _dur_sum_all_week.get(bucket),
-//                                      _calls_sum_all_week.get(bucket),
-//                                      _active_results[thread_id]);
-//    }
+    Q3Out result;
 
-//    void
-//    Query3ServerObject::processLastBucket(uint thread_id, const BucketReference &bucket)
-//    {
-//        q3_simple(_cost_sum_all_week.get(bucket),
-//                  _dur_sum_all_week.get(bucket),
-//                  _calls_sum_all_week.get(bucket),
-//                  bucket.num_of_records, _active_results[thread_id]);
-//    }
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
+        auto schema = tx.getSchema(wideTable);
 
-//    auto
-//    Query3ServerObject::popResult() -> std::pair<std::vector<char>, Status>
-//    {
-//        Q3Result result;
-//        for (Q3Result& partial_result : _active_results) {
-//            for (uint i=0; i<Q3Result::SMALL_THRESHOLD; ++i) {
-//                result.small_values[i] += partial_result.small_values[i];
-//            }
-//            for (auto iter = partial_result.outliers.begin(); iter != partial_result.outliers.end(); ++iter) {
-//                result.outliers[iter->first] += iter->second;
-//            }
-//        }
-//        auto number_of_result_tuples = result.outliers.size();
-//        for (uint i=0; i<Q3Result::SMALL_THRESHOLD; ++i) {
-//            if (result.small_values[i].cost_sum_all_week) {
-//                ++number_of_result_tuples;
-//            }
-//        }
-//        size_t result_size = sizeof(number_of_result_tuples) + number_of_result_tuples * sizeof(Q3Tuple);
-//        std::vector<char> resultBuf(result_size);
-//        char* tmp = resultBuf.data();
-//        memcpy(tmp, &number_of_result_tuples, sizeof(number_of_result_tuples));
-//        tmp += sizeof(number_of_result_tuples);
-//        for (uint32_t i=0; i<Q3Result::SMALL_THRESHOLD; ++i) {
-//            if (result.small_values[i].cost_sum_all_week) {
-//                memcpy(tmp, &result.small_values[i], sizeof(Q3Tuple));
-//                tmp += sizeof(Q3Tuple);
-//            }
-//        }
+        // idea: we have to group by callsSumAllWeek
+        // --> allmost all values in [0,10) --> create 10 parallel aggregations
+        // for values 0, 1, ...., 9
+        // create a projection on >= 10 and aggregate manually
 
-//        for (auto iter = result.outliers.begin(); iter != result.outliers.end(); ++iter) {
-//            memcpy(tmp, &iter->second, sizeof(Q3Tuple));
-//            tmp += sizeof(Q3Tuple);
-//        }
-//        assert(tmp == resultBuf.data() + resultBuf.size());
-//        return std::make_pair(std::move(resultBuf), Status::DONE);
-//    }
+        uint32_t selectionLength = 24;
+        std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+        crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+        selectionWriter.write<uint64_t>(0x1u);
+        selectionWriter.write<uint16_t>(context.callsSumAllWeek);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(0);      // we are going to vary this
+
+        // sort projection attributes
+        std::map<id_t, std::tuple<AggregationType, FieldType,
+                crossbow::string>> projectionAttributes;
+        projectionAttributes[context.costSumAllWeek] = std::make_tuple(
+                AggregationType::SUM, FieldType::DOUBLE, "cost_sum_all_week");
+        projectionAttributes[context.durSumAllWeek] = std::make_tuple(
+                AggregationType::SUM, FieldType::BIGINT, "dur_sum_all_week");
+
+        Schema resultSchema(schema.type());
+
+        uint32_t aggregationLength = 4 * projectionAttributes.size();
+        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+        for (auto &attribute : projectionAttributes) {
+            aggregationWriter.write<uint16_t>(attribute.first);
+            aggregationWriter.write<uint16_t>(
+                    crossbow::to_underlying(std::get<0>(attribute.second)));
+            resultSchema.addField(std::get<1>(attribute.second),
+                    std::get<2>(attribute.second), true);
+        }
+
+        Table resultTable(wideTable.value, std::move(resultSchema));
+
+        auto &snapshot = tx.snapshot();
+        auto &clientHandle = tx.getHandle();
+        std::vector<std::shared_ptr<ScanIterator>> scanIterators;
+        scanIterators.reserve(11);
+        for (int32_t i = 0; i < 10; ++i)
+        {
+            *(reinterpret_cast<int32_t*>(&selection[20])) = i;
+            scanIterators.push_back(clientHandle.scan(resultTable, snapshot,
+                    *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
+                    selection.get(), aggregationLength, aggregation.get()));
+        }
+
+        // projection on rest
+        *(reinterpret_cast<uint8_t*>(&selection[16])) =
+                crossbow::to_underlying(PredicateType::GREATER_EQUAL);
+        *(reinterpret_cast<int32_t*>(&selection[20])) = 10;
+
+        // add one more projection attributes for the non-aggregation scan
+        projectionAttributes[context.callsSumAllWeek] = std::make_tuple(
+                AggregationType::SUM, FieldType::INT, "calls_sum_all_week");
+        uint32_t projectionLength = 2*projectionAttributes.size();
+        std::unique_ptr<char[]> projection(new char[projectionLength]);
+
+        Schema projectionResultSchema(schema.type());
+
+        crossbow::buffer_writer projectionWriter(projection.get(), projectionLength);
+        for (auto &attribute : projectionAttributes) {
+            projectionWriter.write<uint16_t>(attribute.first);
+            projectionResultSchema.addField(std::get<1>(attribute.second),
+                    std::get<2>(attribute.second), true);
+        }
+
+        Table projectionResultTable(wideTable.value, std::move(projectionResultSchema));
+
+        // run the rest-projection scan
+        scanIterators.push_back(clientHandle.scan(projectionResultTable, snapshot,
+                *context.scanMemoryMananger, ScanQueryType::PROJECTION, selectionLength,
+                selection.get(), projectionLength, projection.get()));
+
+        // process results from aggregations
+        for (int32_t i = 0; i < 10; ++i)
+        {
+            auto &scanIterator = scanIterators[i];
+            if (scanIterator->hasNext()) {
+                const char* tuple;
+                size_t tupleLength;
+                std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+                double costSumAllWeek = resultTable.field<double>(
+                        "cost_sum_all_week", tuple);
+                int64_t durSumAllWeek = resultTable.field<int64_t>(
+                        "dur_sum_all_week", tuple);
+                if (durSumAllWeek > 0) {
+                    Q3Out::Q3Tuple q3Tuple;
+                    q3Tuple.number_of_calls_this_week = i;
+                    q3Tuple.cost_ratio = costSumAllWeek / durSumAllWeek;
+                    result.results.push_back(std::move(q3Tuple));
+                }
+            }
+        }
+
+        // process rest query (in a proper scope)
+        {
+            auto &scanIterator = scanIterators[10];
+            std::map<uint32_t, double> costs;
+            std::map<uint32_t, int64_t> durations;
+            while (scanIterator->hasNext()) {
+                const char* tuple;
+                size_t tupleLength;
+                std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+                double costSumAllWeek = projectionResultTable.field<double>(
+                        "cost_sum_all_week", tuple);
+                int64_t durSumAllWeek = projectionResultTable.field<int64_t>(
+                        "dur_sum_all_week", tuple);
+                int32_t callsSumAllWeek  = projectionResultTable.field<double>(
+                            "calls_sum_all_week", tuple);
+                if (costs.find(callsSumAllWeek) == costs.end()) {
+                    // entry does not exists yet, create it
+                    costs[callsSumAllWeek] = 0.0;
+                    durations[callsSumAllWeek] = 0;
+                }
+                costs[callsSumAllWeek] += costSumAllWeek;
+                durations[callsSumAllWeek] += durSumAllWeek;
+
+                for (auto &costEntry : costs) {
+                    Q3Out::Q3Tuple q3Tuple;
+                    q3Tuple.number_of_calls_this_week = costEntry.first;
+                    q3Tuple.cost_ratio = costEntry.second
+                            / durations[costEntry.first];
+                    result.results.push_back(std::move(q3Tuple));
+                }
+            }
+        }
+
+        result.success = true;
+        tx.commit();
+
+        for (auto &scanIterator: scanIterators) {
+            if (scanIterator->error()) {
+                result.error = crossbow::to_string(scanIterator->error().value());
+                result.success = false;
+                return result;
+            }
+
+        }
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
 }
 
 Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In& in)
 {
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    // TODO: implement
-    Q4Out res;
-    return res;
-//    void
-//    Query4ServerObject::processBucket(uint thread_id, const BucketReference& bucket)
-//    {
-//        assert(bucket.num_of_records == RECORDS_PER_BUCKET);
-//        //q4_simple creates a Q4Entry (avg_sum, avg_cnt, sum) for every city
-//        q4_simple<RECORDS_PER_BUCKET>(_calls_sum_local_week.get(bucket), _alpha,
-//                                      _dur_sum_local_week.get(bucket), _beta,
-//                                      _region_city.get(bucket), _entries);
-//    }
+    Q4Out result;
 
-//    void
-//    Query4ServerObject::processLastBucket(uint thread_id, const BucketReference& bucket)
-//    {
-//        q4_simple(_calls_sum_local_week.get(bucket), _alpha,
-//                  _dur_sum_local_week.get(bucket), _beta,
-//                  _region_city.get(bucket), bucket.num_of_records, _entries);
-//    }
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
+        auto schema = tx.getSchema(wideTable);
 
-//    auto
-//    Query4ServerObject::popResult() -> std::pair<std::vector<char>, Status>
-//    {
-//        size_t res_size = region_unique_city.size() * (sizeof(size_t) + sizeof(CityEntry));
-//        for (std::string &city: region_unique_city) {
-//            res_size += city.size();
-//        }
-//        std::vector<char> res(res_size);
-//        char *tmp = res.data();
-//        for (size_t i=0; i<_entries.size(); ++i) {
+        // idea: we have to group by cityName
+        // 5 different unique values
+        // aggregate them all in separate scans
 
-//            CityEntry &entry = _entries[i];
-//            serialize(region_unique_city[i], tmp);
-//            memcpy(tmp, &entry, sizeof(CityEntry));
-//            tmp += sizeof(CityEntry);
-//        }
-//        assert(tmp == res.data() + res.size());
-//        return std::make_pair(std::move(res), Status::DONE);
-//    }
+        uint32_t selectionLength = 56;
+        std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+        crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+        selectionWriter.write<uint64_t>(0x3u);
+
+        selectionWriter.write<uint16_t>(context.regionCity);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(0);                // we are going to vary this
+
+        selectionWriter.write<uint16_t>(context.callsSumLocalWeek);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(in.alpha);
+
+        selectionWriter.write<uint16_t>(context.durSumLocalWeek);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(in.beta);
+
+
+        // sort projection attributes
+        std::map<id_t, std::tuple<AggregationType, FieldType,
+                crossbow::string>> aggregationAttributes;
+        aggregationAttributes[context.callsSumLocalWeek] = std::make_tuple(
+                AggregationType::SUM, FieldType::INT, "sum_calls_sum_local_week");
+        aggregationAttributes[context.callsSumLocalWeek] = std::make_tuple(
+                AggregationType::CNT, FieldType::INT, "cnt_calls_sum_local_week");
+        aggregationAttributes[context.durSumLocalWeek] = std::make_tuple(
+                AggregationType::SUM, FieldType::BIGINT, "dur_sum_local_week");
+
+        Schema resultSchema(schema.type());
+
+        uint32_t aggregationLength = 4 * aggregationAttributes.size();
+        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+        for (auto &attribute : aggregationAttributes) {
+            aggregationWriter.write<uint16_t>(attribute.first);
+            aggregationWriter.write<uint16_t>(
+                    crossbow::to_underlying(std::get<0>(attribute.second)));
+            resultSchema.addField(std::get<1>(attribute.second),
+                    std::get<2>(attribute.second), true);
+        }
+
+        Table resultTable(wideTable.value, std::move(resultSchema));
+
+        auto &snapshot = tx.snapshot();
+        auto &clientHandle = tx.getHandle();
+        std::vector<std::shared_ptr<ScanIterator>> scanIterators;
+        uint16_t numberOfCities = region_unique_city.size();
+        scanIterators.reserve(numberOfCities);
+        for (int32_t i = 0; i < numberOfCities; ++i)
+        {
+            *(reinterpret_cast<int32_t*>(&selection[20])) = i;
+            scanIterators.push_back(clientHandle.scan(resultTable, snapshot,
+                    *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
+                    selection.get(), aggregationLength, aggregation.get()));
+        }
+
+        // process results from aggregations
+        for (int16_t i = 0; i < numberOfCities; ++i)
+        {
+            auto &scanIterator = scanIterators[i];
+            if (scanIterator->hasNext()) {
+                const char* tuple;
+                size_t tupleLength;
+                std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+                int32_t sumCallsSumLocalWeek = resultTable.field<int32_t>(
+                        "sum_calls_sum_local_week", tuple);
+                int32_t cntCallsSumLocalWeek = resultTable.field<int32_t>(
+                        "cnt_calls_sum_local_week", tuple);
+                int64_t durSumLocalWeek = resultTable.field<int64_t>(
+                        "dur_sum_local_week", tuple);
+                if (cntCallsSumLocalWeek > 0) {
+                    Q4Out::Q4Tuple q4Tuple;
+                    q4Tuple.city_name = region_unique_city[i];
+                    q4Tuple.avg_num_local_calls_week =
+                            static_cast<double>(sumCallsSumLocalWeek)
+                                    / cntCallsSumLocalWeek;
+                    q4Tuple.sum_duration_local_calls_week = durSumLocalWeek;
+                    result.results.push_back(std::move(q4Tuple));
+                }
+            }
+        }
+
+        result.success = true;
+        tx.commit();
+
+        for (auto &scanIterator: scanIterators) {
+            if (scanIterator->error()) {
+                result.error = crossbow::to_string(scanIterator->error().value());
+                result.success = false;
+                return result;
+            }
+
+        }
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
 }
 
 Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In& in)

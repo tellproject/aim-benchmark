@@ -100,9 +100,19 @@ public:
             context.scanMemoryMananger = scanMemoryManager;
             context.callsSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
+            context.callsSumAllWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
             context.durSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
+            context.durSumLocalWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::SUM,FilterType::LOCAL, WindowLength::WEEK));
             context.isInitialized = true;
+            context.costMaxAllWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::COST, AggrFun::MAX, FilterType::NO, WindowLength::WEEK));
+            context.costSumAllWeek = tellSchema.idOf(aimSchema.getName(
+                    Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+            context.regionZip = tellSchema.idOf("city_zip");
+            context.regionCity = tellSchema.idOf("region_cty_id");
         }
     }
 

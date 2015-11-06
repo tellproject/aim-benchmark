@@ -166,8 +166,8 @@ struct Q3Out {
     using is_serializable = crossbow::is_serializable;
     struct Q3Tuple {
         using is_serializable = crossbow::is_serializable;
-        double cost_ratio;
         uint32_t number_of_calls_this_week;
+        double cost_ratio;
 
         template<class Archiver>
         void operator&(Archiver& ar) {

@@ -37,8 +37,15 @@ namespace aim {
 struct Context {
     bool isInitialized = false;
     tell::store::ScanMemoryManager *scanMemoryMananger;
-    id_t callsSumLocalWeek = 0;
-    id_t durSumAllWeek = 0;
+    id_t callsSumLocalWeek;
+    id_t callsSumAllWeek;
+    id_t durSumAllWeek;
+    id_t durSumLocalWeek;
+    id_t costMaxAllWeek;
+    id_t costSumAllWeek;
+    id_t regionZip;
+    id_t regionCity;
+
 };
 
 class CommandImpl;
