@@ -62,10 +62,10 @@ class CommandImpl {
     tell::db::ClientManager<void>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<void>> mFiber;
     std::vector<Event> mEventBatch;
-    unsigned mEventBatchSize;
-    Transactions mTransactions;
     const AIMSchema &mAIMSchema;
     const DimensionSchema &mDimensionSchema;
+    unsigned mEventBatchSize;
+    Transactions mTransactions;
 public:
     CommandImpl(boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
@@ -79,6 +79,7 @@ public:
         , mEventBatchSize(eventBatchSize)
         , mAIMSchema(aimSchema)
         , mDimensionSchema(dimensionSchema)
+        , mTransactions(aimSchema)
     {
         mEventBatch.reserve(mEventBatchSize);
     }
@@ -103,10 +104,10 @@ public:
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
     execute(const Callback callback) {
         auto transaction = [this, callback](tell::db::Transaction& tx){
-           /* bool success;
+            bool success;
             crossbow::string msg;
             try {
-                createSchema(tx);
+                createSchema(tx, mAIMSchema);
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {
@@ -118,7 +119,7 @@ public:
                 mFiber->wait();
                 mFiber.reset(nullptr);
                 callback(std::make_tuple(success, msg));
-            })*/;
+            });
         };
         mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
     }
@@ -131,7 +132,7 @@ public:
             crossbow::string msg;
             try {
                 Populator populator;
-                populator.populateWideTable(tx, mAIMSchema, mDimensionSchema, std::get<0>(args), std::get<1>(args));
+                populator.populateWideTable(tx, mAIMSchema, std::get<0>(args), std::get<1>(args));
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {
@@ -152,14 +153,16 @@ public:
     typename std::enable_if<C == Command::Q1, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         auto transaction = [this, args, callback](tell::db::Transaction& tx) {
-            typename Signature<C>::result res = mTransactions.q1Transaction(tx, args);
+            typename Signature<C>::result res = mTransactions.q1Transaction(tx, args, mClientManager.getScanMemoryManager());
             mService.post([this, res, callback]() {
                 mFiber->wait();
                 mFiber.reset(nullptr);
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -173,7 +176,9 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -187,7 +192,9 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -201,7 +208,9 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -215,7 +224,9 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -229,7 +240,9 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
     template<Command C, class Callback>
@@ -243,16 +256,18 @@ public:
                 callback(res);
             });
         };
-        mFiber.reset(new tell::db::TransactionFiber<void>(mClientManager.startTransaction(transaction)));
+        mFiber.reset(new tell::db::TransactionFiber<void>(
+                mClientManager.startTransaction(transaction,
+                        tell::store::TransactionType::ANALYTICAL)));
     }
 
 };
 
 Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<void>& clientManager,
-               const AIMSchema &aimSchema,
-               const DimensionSchema &dimensionSchema,
-               unsigned eventBatchSize)
+                const AIMSchema &aimSchema,
+                const DimensionSchema &dimensionSchema,
+                unsigned eventBatchSize)
     : mSocket(service)
     , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, dimensionSchema, eventBatchSize))
 {}

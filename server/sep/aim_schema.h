@@ -27,6 +27,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include <crossbow/string.hpp>
+
 #include "server/sep/aim_schema_entry.h"
 
 /*
@@ -70,6 +72,10 @@ public:
     //lb: added for generic benchmarking framework
     DataType typeAt(uint pos) const { return _entries[pos].type(); }
 
+    //lb: added for TELL integration
+    crossbow::string getName(Metric metric, AggrFun aggr_fun, FilterType filter_type,
+                         WindowLength window_size) const;
+
 private:
     uint64_t _getEntryHash(Metric metric, AggrFun aggr_fun,
                            FilterType filter_type,
@@ -79,4 +85,8 @@ private:
     std::vector<uint16_t> _offsets;
     size_t _size;
     std::unordered_map<uint64_t, uint64_t> _entry_to_offset;
+
+    //lb: added for TELL integration
+    uint16_t _entry_count = 1;
+    std::unordered_map<uint64_t, crossbow::string> _entry_to_names;
 };

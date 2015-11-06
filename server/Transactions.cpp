@@ -22,13 +22,65 @@
  */
 #include "Transactions.hpp"
 
+#include <crossbow/enum_underlying.hpp>
+
+#include <tellstore/Table.hpp>
+
 namespace aim {
 
+using namespace tell::db;
+using namespace tell::store;
 
-Q1Out Transactions::q1Transaction(tell::db::Transaction& tx, const Q1In& in)
+
+inline void Transactions::initializeIfNecessary(Transaction &tx, Schema &schema)
+{
+
+    callsSumLocalWeek = schema.idOf(mAimSchema.getName(
+            Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
+    durSumAllWeek = schema.idOf(mAimSchema.getName(
+            Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
+}
+
+Q1Out Transactions::q1Transaction(Transaction& tx, const Q1In& in, ScanMemoryManager *memoryManager)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
+    auto schema = tx.getSchema(wideTable);
+    initializeIfNecessary(tx, schema);
+
+    uint32_t selectionLength = 24;
+    std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+    crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+    selectionWriter.write<uint64_t>(0x1u);
+    selectionWriter.write<uint16_t>(callsSumLocalWeek);
+    selectionWriter.write<uint16_t>(0x1u);
+    selectionWriter.align(sizeof(uint64_t));
+    selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
+    selectionWriter.write<uint8_t>(0x0u);
+    selectionWriter.align(sizeof(uint32_t));
+    selectionWriter.write<int32_t>(in.alpha);
+
+    uint32_t aggregationLength = 8;
+    std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+    crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+    aggregationWriter.write<uint16_t>(durSumAllWeek);
+    aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::SUM));
+    aggregationWriter.write<uint16_t>(durSumAllWeek);
+    aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::CNT));
+
+    Schema resultSchema(schema.type());
+    resultSchema.addField(FieldType::BIGINT, "sum", true);
+    resultSchema.addField(FieldType::INT, "cnt", true);
+    Table resultTable(wideTable.value, std::move(resultSchema));
+
+    auto &snapshot = tx.snapshot();
+    auto &clientHandle = tx.getHandle();
+//    auto scanIterator = clientHandle.scan(resultTable, snapshot, clientHandle., ScanQueryType::AGGREGATION, selectionLength,
+//            selection.get(), aggregationLength, aggregation.get());
+
+
     // TODO: implement
     Q1Out res;
     return res;
@@ -65,7 +117,7 @@ Q1Out Transactions::q1Transaction(tell::db::Transaction& tx, const Q1In& in)
 //    }
 }
 
-Q2Out Transactions::q2Transaction(tell::db::Transaction& tx, const Q2In& in)
+Q2Out Transactions::q2Transaction(Transaction& tx, const Q2In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -100,7 +152,7 @@ Q2Out Transactions::q2Transaction(tell::db::Transaction& tx, const Q2In& in)
 //    }
 }
 
-Q3Out Transactions::q3Transaction(tell::db::Transaction& tx)
+Q3Out Transactions::q3Transaction(Transaction& tx)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -165,7 +217,7 @@ Q3Out Transactions::q3Transaction(tell::db::Transaction& tx)
 //    }
 }
 
-Q4Out Transactions::q4Transaction(tell::db::Transaction& tx, const Q4In& in)
+Q4Out Transactions::q4Transaction(Transaction& tx, const Q4In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -211,7 +263,7 @@ Q4Out Transactions::q4Transaction(tell::db::Transaction& tx, const Q4In& in)
 //    }
 }
 
-Q5Out Transactions::q5Transaction(tell::db::Transaction& tx, const Q5In& in)
+Q5Out Transactions::q5Transaction(Transaction& tx, const Q5In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -270,7 +322,7 @@ Q5Out Transactions::q5Transaction(tell::db::Transaction& tx, const Q5In& in)
 //    }
 }
 
-Q6Out Transactions::q6Transaction(tell::db::Transaction& tx, const Q6In& in)
+Q6Out Transactions::q6Transaction(Transaction& tx, const Q6In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();
@@ -332,7 +384,7 @@ Q6Out Transactions::q6Transaction(tell::db::Transaction& tx, const Q6In& in)
 //    }
 }
 
-Q7Out Transactions::q7Transaction(tell::db::Transaction& tx, const Q7In& in)
+Q7Out Transactions::q7Transaction(Transaction& tx, const Q7In& in)
 {
     auto wFuture = tx.openTable("wt");
     auto wideTable = wFuture.get();

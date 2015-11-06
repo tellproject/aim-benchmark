@@ -69,6 +69,7 @@ AIMSchema::addEntry(const AIMSchemaEntry &se)
     uint64_t id = _getEntryHash(se.valMetric(), se.valAggrFun(),
                                 se.filterType(), se.winLength());
     _entry_to_offset[id] = *(_offsets.end() - 2);
+    _entry_to_names[id] = "a_" + crossbow::to_string(_entry_count++);
 }
 
 uint64_t
@@ -78,6 +79,14 @@ AIMSchema::getOffset(Metric metric, AggrFun aggr_fun, FilterType filter_type,
     uint64_t id = _getEntryHash(metric, aggr_fun, filter_type, window_size);
     auto iter = _entry_to_offset.find(id);
     assert(iter != _entry_to_offset.end());
+    return iter->second;
+}
+
+crossbow::string AIMSchema::getName(Metric metric, AggrFun aggr_fun, FilterType filter_type, WindowLength window_size) const
+{
+    uint64_t id = _getEntryHash(metric, aggr_fun, filter_type, window_size);
+    auto iter = _entry_to_names.find(id);
+    assert(iter != _entry_to_names.end());
     return iter->second;
 }
 

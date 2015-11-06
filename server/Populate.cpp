@@ -86,8 +86,7 @@ inline void addField(std::unordered_map<crossbow::string, Field> &tuple,
 }
 
 inline void initializeWideTableColumn (std::unordered_map<crossbow::string, Field> &tuple,
-                     const AIMSchema &aimSchema,
-                     const DimensionSchema &dimSchema) {
+                     const AIMSchema &aimSchema) {
     char *tmp = new char [8];
     for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
     {
@@ -99,13 +98,13 @@ inline void initializeWideTableColumn (std::unordered_map<crossbow::string, Fiel
 }   // anonymous namespace
 
 void Populator::populateWideTable(tell::db::Transaction &transaction,
-                    const AIMSchema &aimSchema, const DimensionSchema &dimSchema,
+                    const AIMSchema &aimSchema,
                     uint64_t lowest, uint64_t highest) {
     Random_t rand;
     auto tIdFuture = transaction.openTable("wt");
     auto tId = tIdFuture.get();
     std::unordered_map<crossbow::string, Field> tuple;
-    initializeWideTableColumn(tuple, aimSchema, dimSchema); // these attributes are the same for each tuple
+    initializeWideTableColumn(tuple, aimSchema); // these attributes are the same for each tuple
     for (uint64_t i = lowest; i <= highest; ++i) {
         tuple["subscriber_id"] = Field(static_cast<int64_t>(i));
         tuple["last_updated"] = Field(now());

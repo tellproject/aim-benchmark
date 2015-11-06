@@ -41,7 +41,6 @@ set(SERVER_SRC
     server/CreateSchema.hpp
     server/Populate.cpp
     server/Populate.hpp
-    server/sep/aim_column_finder.h
     server/sep/aim_schema.cpp
     server/sep/aim_schema.h
     server/sep/aim_schema_builder.cpp
@@ -71,7 +70,6 @@ set(SERVER_SRC
     server/sep/window.h
     server/rta/Controller.cpp
     server/rta/Controller.h
-    server/rta/dim_column_finder.h
     server/rta/dimension_record.cpp
     server/rta/dimension_record.h
     server/rta/dimension_schema.cpp

@@ -29,6 +29,7 @@
 #include <boost/asio.hpp>
 #include <string>
 #include <iostream>
+#include <thread>
 
 #include "server/rta/dimension_schema.h"
 #include "server/sep/schema_and_index_builder.h"
@@ -63,6 +64,8 @@ int main(int argc, const char** argv) {
     crossbow::string commitManager;
     crossbow::string storageNodes;
     unsigned eventBatchSize = 100u;
+    unsigned processingThreads = 1u;
+    unsigned scanBlockSize = 4096u;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
@@ -71,7 +74,9 @@ int main(int argc, const char** argv) {
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"}),
-            value<'b'>("batch-size", &eventBatchSize, tag::description{"Size of event batches"})
+            value<'b'>("batch-size", &eventBatchSize, tag::description{"size of event batches"}),
+            value<'t'>("threads", &processingThreads, tag::description{"number of processing threads"}),
+            value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
             );
     try {
         parse(opts, argc, argv);
@@ -101,6 +106,8 @@ int main(int argc, const char** argv) {
     config.commitManager = config.parseCommitManager(commitManager);
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<void> clientManager(config);
+    clientManager.allocateScanMemory(
+            config.tellStore.size() * processingThreads, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
@@ -135,7 +142,16 @@ int main(int argc, const char** argv) {
         a.listen();
         // we do not need to delete this object, it will delete itself
         accept(service, a, clientManager, aimSchema, dimSchema, eventBatchSize);
+
+        std::vector<std::thread> threads;
+        threads.reserve(processingThreads-1);
+        for (unsigned i = 0; i < processingThreads-1; ++i)
+            threads.emplace_back([&service]{service.run();});
         service.run();
+        for (auto &thread: threads)
+            thread.join();
+
+
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }

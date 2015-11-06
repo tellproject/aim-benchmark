@@ -29,6 +29,7 @@
 #include <iostream>
 #include <cassert>
 #include <fstream>
+#include <thread>
 
 #include "RTAClient.hpp"
 
@@ -57,6 +58,7 @@ int main(int argc, const char** argv) {
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
+    unsigned processingThreads = 1u;
     auto opts = create_options("rta_client",
             value<'h'>("help", &help, tag::description{"print help"})
             , value<'H'>("hosts", &hostList, tag::description{"Comma-separated list of hosts"})
@@ -66,6 +68,7 @@ int main(int argc, const char** argv) {
             , value<'w'>("workload", &workloadList, tag::description{"Comma-separated list of query numbers (1 to 7)"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
+            , value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
             );
     try {
         parse(opts, argc, argv);
@@ -127,7 +130,13 @@ int main(int argc, const char** argv) {
             client.run();
         }
 
+        std::vector<std::thread> threads;
+        threads.reserve(processingThreads-1);
+        for (unsigned i = 0; i < processingThreads-1; ++i)
+            threads.emplace_back([&service]{service.run();});
         service.run();
+        for (auto &thread: threads)
+            thread.join();
 
         LOG_INFO("Done, writing results");
         std::ofstream out(outFile.c_str());

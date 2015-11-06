@@ -22,22 +22,42 @@
  */
 #pragma once
 #include <telldb/Transaction.hpp>
+#include <tellstore/ScanMemory.hpp>
 #include <common/Protocol.hpp>
 #include <common/Util.hpp>
+
 #include "CreateSchema.hpp"
+
+#include "server/sep/aim_schema.h"
 
 namespace aim {
 
 class Transactions {
 
 public:
-    Q1Out q1Transaction(tell::db::Transaction& tx, const Q1In& in);
+
+    /**
+     * takes a transaction in the constructor such that schema can be obained at startup time
+     */
+    Transactions(const AIMSchema &aimSchema):
+            mAimSchema(aimSchema)
+    {}
+
+    Q1Out q1Transaction(tell::db::Transaction& tx, const Q1In& in, tell::store::ScanMemoryManager *memoryManager);
     Q2Out q2Transaction(tell::db::Transaction& tx, const Q2In& in);
     Q3Out q3Transaction(tell::db::Transaction& tx);
     Q4Out q4Transaction(tell::db::Transaction& tx, const Q4In& in);
     Q5Out q5Transaction(tell::db::Transaction& tx, const Q5In& in);
     Q6Out q6Transaction(tell::db::Transaction& tx, const Q6In& in);
     Q7Out q7Transaction(tell::db::Transaction& tx, const Q7In& in);
+
+private:
+    void initializeIfNecessary(tell::db::Transaction &tx, tell::store::Schema &schema);
+
+private:
+    id_t callsSumLocalWeek = 0;
+    id_t durSumAllWeek = 0;
+    const AIMSchema &mAimSchema;
 
 };
 

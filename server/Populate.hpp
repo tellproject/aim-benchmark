@@ -43,7 +43,7 @@ namespace aim {
 class Populator {
 public:
     void populateWideTable(tell::db::Transaction& transaction,
-                const AIMSchema &aimSchema, const DimensionSchema &dimSchema,
+                const AIMSchema &aimSchema,
                 uint64_t lowest, uint64_t highest);
 };
 

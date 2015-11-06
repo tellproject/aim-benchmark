@@ -44,7 +44,7 @@ inline store::FieldType translateType(DataType aimType) {
 
 } // anonymouse namespace
 
-void createSchema(tell::db::Transaction& transaction, AIMSchema &aimSchema, DimensionSchema &dimSchema) {
+void createSchema(tell::db::Transaction& transaction, const AIMSchema &aimSchema) {
     store::Schema schema(store::TableType::TRANSACTIONAL);
     // Primary key: subscriber_id
     schema.addField(store::FieldType::BIGINT, "subscriber_id", true);

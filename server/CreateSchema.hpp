@@ -25,7 +25,6 @@
 #include <limits>
 
 #include "server/sep/aim_schema.h"
-#include "server/rta/dimension_schema.h"
 
 namespace tell {
 namespace db {
@@ -37,6 +36,6 @@ class Transaction;
 
 namespace aim {
 
-void createSchema(tell::db::Transaction& transaction, AIMSchema &aimSchema, DimensionSchema &dimSchema);
+void createSchema(tell::db::Transaction& transaction, const AIMSchema &aimSchema);
 
 } // namespace aim
