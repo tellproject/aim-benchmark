@@ -59,9 +59,13 @@ void createSchema(tell::db::Transaction& transaction, AIMSchema &aimSchema, Dime
     schema.addField(store::FieldType::SMALLINT, "subscription_cost_id", true);
     schema.addField(store::FieldType::SMALLINT, "subscription_free_call_mins_id", true);
     schema.addField(store::FieldType::SMALLINT, "subscription_data_id", true);
+
     schema.addField(store::FieldType::SMALLINT, "city_zip", true);
     schema.addField(store::FieldType::SMALLINT, "region_cty_id", true);
     schema.addField(store::FieldType::SMALLINT, "region_state_id", true);
+    schema.addField(store::FieldType::SMALLINT, "region_country_id", true);
+    schema.addField(store::FieldType::SMALLINT, "region_region_id", true);
+
     schema.addField(store::FieldType::SMALLINT, "category_id", true);
     schema.addField(store::FieldType::SMALLINT, "value_type_id", true);
     schema.addField(store::FieldType::SMALLINT, "value_type_threshold_id", true);
