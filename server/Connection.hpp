@@ -43,8 +43,10 @@ struct Context {
 
     id_t callsSumLocalWeek;
     id_t callsSumAllWeek;
+    id_t callsSumAllDay;
 
     id_t durSumAllWeek;
+    id_t durSumAllDay;
     id_t durSumLocalWeek;
 
     id_t durMaxLocalWeek;
@@ -54,6 +56,7 @@ struct Context {
 
     id_t costMaxAllWeek;
     id_t costSumAllWeek;
+    id_t costSumAllDay;
     id_t costSumLocalWeek;
     id_t costSumDistantWeek;
 
@@ -64,6 +67,8 @@ struct Context {
     id_t regionCountry;
     id_t regionRegion;
 
+    id_t valueTypeId;
+
 };
 
 class CommandImpl;
@@ -73,7 +78,7 @@ class Connection {
     std::unique_ptr<CommandImpl> mImpl;
 public:
     Connection(boost::asio::io_service& service, tell::db::ClientManager<Context>& clientManager,
-               const AIMSchema &aimSchema, const DimensionSchema &dimensionSchema,
+               const AIMSchema &aimSchema,
                unsigned eventBatchSize);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }

@@ -588,24 +588,32 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             selectionWriter.align(sizeof(uint32_t));
             selectionWriter.write<int32_t>(in.country_id);
 
-            uint32_t aggregationLength = 16;
+            // sort aggregation attributes
+            std::map<id_t, std::tuple<AggregationType, FieldType,
+                    crossbow::string>> aggregationAttributes;
+            aggregationAttributes[context.durMaxLocalWeek] = std::make_tuple(
+                    AggregationType::MAX, FieldType::DOUBLE, "max_local_week");
+            aggregationAttributes[context.durMaxLocalDay] = std::make_tuple(
+                    AggregationType::MAX, FieldType::DOUBLE, "max_local_day");
+            aggregationAttributes[context.durMaxDistantWeek] = std::make_tuple(
+                    AggregationType::MAX, FieldType::DOUBLE, "max_distant_week");
+            aggregationAttributes[context.durMaxDistantDay] = std::make_tuple(
+                    AggregationType::MAX, FieldType::DOUBLE, "max_distant_day");
+
+            Schema resultSchema(schema.type());
+
+            uint32_t aggregationLength = 4 * aggregationAttributes.size();
             std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
 
             crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
-            aggregationWriter.write<uint16_t>(context.durMaxLocalWeek);
-            aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::MAX));
-            aggregationWriter.write<uint16_t>(context.durMaxLocalDay);
-            aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::MAX));
-            aggregationWriter.write<uint16_t>(context.durMaxDistantWeek);
-            aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::MAX));
-            aggregationWriter.write<uint16_t>(context.durMaxDistantDay);
-            aggregationWriter.write<uint16_t>(crossbow::to_underlying(AggregationType::MAX));
+            for (auto &attribute : aggregationAttributes) {
+                aggregationWriter.write<uint16_t>(attribute.first);
+                aggregationWriter.write<uint16_t>(
+                        crossbow::to_underlying(std::get<0>(attribute.second)));
+                resultSchema.addField(std::get<1>(attribute.second),
+                        std::get<2>(attribute.second), true);
+            }
 
-            Schema resultSchema(schema.type());
-            resultSchema.addField(FieldType::BIGINT, "max_local_week", true);
-            resultSchema.addField(FieldType::BIGINT, "max_local_day", true);
-            resultSchema.addField(FieldType::BIGINT, "max_distant_week", true);
-            resultSchema.addField(FieldType::BIGINT, "max_distant_day", true);
             Table resultTable(wideTable.value, std::move(resultSchema));
 
             auto scanIterator = clientHandle.scan(resultTable, snapshot,
@@ -711,6 +719,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             }
         }
 
+        result.success = true;
         tx.commit();
 
     } catch (std::exception& ex) {
@@ -723,65 +732,106 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
 Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In& in)
 {
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    // TODO: implement
-    Q7Out res;
-    return res;
+    Q7Out result;
 
-//    void
-//    Query7ServerObject::processBucket(uint thread_id, const BucketReference& bucket)
-//    {
-//        assert(bucket.num_of_records == RECORDS_PER_BUCKET);
-//        const double* cost_sum;
-//        const uint32_t* duration_sum;
-//        if (_window_length == WindowLength::DAY) {
-//            cost_sum = _cost_sum_all_day.get(bucket);
-//            duration_sum = _dur_sum_all_day.get(bucket);
-//        }
-//        else {
-//            cost_sum = _cost_sum_all_week.get(bucket);
-//            duration_sum = _dur_sum_all_week.get(bucket);
-//        }
-//        q7_simple(_subscriber_value_type.get(bucket),
-//                  _value_type_id, _subscriber_id.get(bucket),
-//                  cost_sum, duration_sum,
-//                  RECORDS_PER_BUCKET, _entries[thread_id]);
-//    }
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
+        auto schema = tx.getSchema(wideTable);
 
-//    void
-//    Query7ServerObject::processLastBucket(uint thread_id, const BucketReference& bucket)
-//    {
-//        const double* cost_sum;
-//        const uint32_t* duration_sum;
-//        if (_window_length == WindowLength::DAY) {
-//            cost_sum = _cost_sum_all_day.get(bucket);
-//            duration_sum = _dur_sum_all_day.get(bucket);
-//        }
-//        else {
-//            cost_sum = _cost_sum_all_week.get(bucket);
-//            duration_sum = _dur_sum_all_week.get(bucket);
-//        }
-//        q7_simple(_subscriber_value_type.get(bucket),
-//                  _value_type_id, _subscriber_id.get(bucket),
-//                  cost_sum, duration_sum,
-//                  bucket.num_of_records, _entries[thread_id]);
-//    }
+        // idea: we have to group by cityName
+        // 5 different unique values
+        // aggregate them all in separate scans
 
-//    auto
-//    Query7ServerObject::popResult() -> std::pair<std::vector<char>, Status>
-//    {
-//        Query7Result q7_res;
-//        for (Query7Result& thread_result: _entries) {
-//            if (q7_res.avg_money_per_time > thread_result.avg_money_per_time) {
-//                q7_res.avg_money_per_time = thread_result.avg_money_per_time;
-//                q7_res.subscriber_id = thread_result.subscriber_id;
-//            }
-//        }
-//        std::vector<char> res(sizeof(Query7Result));
-//        std::memcpy(res.data(), &q7_res, sizeof(q7_res));
-//        return std::make_pair(std::move(res), Status::DONE);
-//    }
+        uint32_t selectionLength = 24;
+        std::unique_ptr<char[]> selection(new char[selectionLength]);
+
+        crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
+        selectionWriter.write<uint64_t>(0x1u);
+
+        selectionWriter.write<uint16_t>(context.valueTypeId);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<int32_t>(in.subscriber_value_type);
+
+        // sort aggregation attributes
+        id_t costSumAllIdx = in.window_length == 0 ?
+                    context.costSumAllDay : context.costSumAllWeek;
+        id_t durSumAllIdx = in.window_length == 0 ?
+                    context.durSumAllDay : context.durSumAllWeek;
+        id_t callsSumAllIdx = in.window_length == 0 ?
+                    context.callsSumAllDay : context.callsSumAllWeek;
+        std::map<id_t, std::tuple<FieldType, crossbow::string>> aggregationAttributes;
+        aggregationAttributes[context.subscriberId] = std::make_tuple(
+                FieldType::BIGINT, "subscriber_id");
+        aggregationAttributes[costSumAllIdx] = std::make_tuple(
+                FieldType::DOUBLE, "cost_sum_all");
+        aggregationAttributes[durSumAllIdx] = std::make_tuple(
+                FieldType::BIGINT, "dur_sum_all");
+        aggregationAttributes[callsSumAllIdx] = std::make_tuple(
+                FieldType::INT, "calls_sum_all");
+
+        Schema resultSchema(schema.type());
+
+        uint32_t aggregationLength = 2 * aggregationAttributes.size();
+        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+
+        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
+        for (auto &attribute : aggregationAttributes) {
+            aggregationWriter.write<uint16_t>(attribute.first);
+            resultSchema.addField(std::get<0>(attribute.second),
+                    std::get<1>(attribute.second), true);
+        }
+
+        Table resultTable(wideTable.value, std::move(resultSchema));
+
+        auto &snapshot = tx.snapshot();
+        auto &clientHandle = tx.getHandle();
+        auto scanIterator = clientHandle.scan(resultTable, snapshot,
+                    *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
+                    selection.get(), aggregationLength, aggregation.get());
+
+        result.flat_rate = std::numeric_limits<double>().max();
+        result.subscriber_id = 1;
+        while (scanIterator->hasNext()) {
+            const char* tuple;
+            size_t tupleLength;
+            std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
+            int32_t callsSumAll;
+            int64_t durSumAll;
+            if ((callsSumAll = resultTable.field<int32_t>(
+                        "calls_sum_all", tuple)) &&
+                            (durSumAll = resultTable.field<int64_t>(
+                                "dur_sum_all", tuple))) {
+                double flatRate = resultTable.field<double>(
+                        "cost_sum_all", tuple);
+                flatRate /= durSumAll;
+                if (flatRate < result.flat_rate) {
+                    result.flat_rate = flatRate;
+                    result.subscriber_id = resultTable.field<int64_t>(
+                            "subscriber_sum_all", tuple);
+                }
+            }
+        }
+
+        result.success = true;
+        tx.commit();
+
+        if (scanIterator->error()) {
+            result.error = crossbow::to_string(scanIterator->error().value());
+            result.success = false;
+            return result;
+        }
+
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
 }
 
 } // namespace aim

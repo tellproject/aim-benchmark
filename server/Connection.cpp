@@ -63,7 +63,6 @@ class CommandImpl {
     std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
     std::vector<Event> mEventBatch;
     const AIMSchema &mAIMSchema;
-    const DimensionSchema &mDimensionSchema;
     unsigned mEventBatchSize;
     Transactions mTransactions;
 public:
@@ -71,14 +70,12 @@ public:
             boost::asio::io_service& service,
             tell::db::ClientManager<Context>& clientManager,
             const AIMSchema &aimSchema,
-            const DimensionSchema &dimensionSchema,
             unsigned eventBatchSize)
         : mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
-        , mEventBatchSize(eventBatchSize)
         , mAIMSchema(aimSchema)
-        , mDimensionSchema(dimensionSchema)
+        , mEventBatchSize(eventBatchSize)
         , mTransactions(aimSchema)
     {
         mEventBatch.reserve(mEventBatchSize);
@@ -105,9 +102,13 @@ public:
                     Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
             context.callsSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+            context.callsSumAllDay = tellSchema.idOf(aimSchema.getName(
+                    Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
 
             context.durSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
+            context.durSumAllDay = tellSchema.idOf(aimSchema.getName(
+                    Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::DAY));
             context.durSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::DUR, AggrFun::SUM,FilterType::LOCAL, WindowLength::WEEK));
 
@@ -124,6 +125,8 @@ public:
                     Metric::COST, AggrFun::MAX, FilterType::NO, WindowLength::WEEK));
             context.costSumAllWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+            context.costSumAllDay = tellSchema.idOf(aimSchema.getName(
+                    Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
             context.costSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::COST, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
             context.costSumDistantWeek = tellSchema.idOf(aimSchema.getName(
@@ -135,6 +138,8 @@ public:
             context.regionCity = tellSchema.idOf("region_cty_id");
             context.regionCountry = tellSchema.idOf("region_country_id");
             context.regionRegion = tellSchema.idOf("region_region_id");
+
+            context.valueTypeId = tellSchema.idOf("value_type_id");
 
             context.isInitialized = true;
         }
@@ -339,10 +344,9 @@ public:
 Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<Context>& clientManager,
                 const AIMSchema &aimSchema,
-                const DimensionSchema &dimensionSchema,
                 unsigned eventBatchSize)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, dimensionSchema, eventBatchSize))
+    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, eventBatchSize))
 {}
 
 Connection::~Connection() = default;

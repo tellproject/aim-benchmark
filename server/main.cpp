@@ -42,17 +42,16 @@ void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
         tell::db::ClientManager<aim::Context>& clientManager,
         const AIMSchema &aimSchema,
-        const DimensionSchema &dimensionSchema,
         unsigned eventBatchSize) {
-    auto conn = new aim::Connection(service, clientManager, aimSchema, dimensionSchema, eventBatchSize);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, dimensionSchema, eventBatchSize](const boost::system::error_code &err) {
+    auto conn = new aim::Connection(service, clientManager, aimSchema, eventBatchSize);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, eventBatchSize](const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager, aimSchema, dimensionSchema, eventBatchSize);
+        accept(service, a, clientManager, aimSchema, eventBatchSize);
     });
 }
 
@@ -98,7 +97,6 @@ int main(int argc, const char** argv) {
 
     SchemaAndIndexBuilder builder(schemaFile.c_str());
     AIMSchema aimSchema = builder.buildAIMSchema();
-    DimensionSchema dimSchema;
 
     crossbow::allocator::init();
 
@@ -142,7 +140,7 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager, aimSchema, dimSchema, eventBatchSize);
+        accept(service, a, clientManager, aimSchema, eventBatchSize);
 
         std::vector<std::thread> threads;
         threads.reserve(processingThreads-1);
