@@ -38,37 +38,11 @@ namespace aim {
 
 namespace { // anonymous namesapce
 
-inline void addField(std::unordered_map<crossbow::string, Field> &tuple,
-                     char *tmp, tell::store::FieldType type,
-                     const crossbow::string &fieldName) {
-    switch (type) {
-    case tell::store::FieldType::DOUBLE:
-    {
-        tuple [fieldName] = *(reinterpret_cast<double*>(tmp));
-        break;
-    }
-    case tell::store::FieldType::INT:
-    {
-        tuple [fieldName] = *(reinterpret_cast<int32_t*>(tmp));
-        break;
-    }
-    case tell::store::FieldType::BIGINT:
-    {
-        tuple [fieldName] = *(reinterpret_cast<int64_t*>(tmp));
-        break;
-    }
-    default:
-        LOG_ASSERT(false, "AIM field type must be INT, BIGINT, or DOUBLE!")
-    }
-}
-
 inline void initializeWideTableColumn (std::unordered_map<crossbow::string, Field> &tuple,
                      const AIMSchema &aimSchema) {
-    char *tmp = new char [8];
     for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
     {
-        aimSchema[i].initDef(&tmp);
-        addField(tuple, tmp, aimSchema[i].type(), aimSchema[i].name());
+        tuple.emplace(std::make_pair(aimSchema[i].name(), aimSchema[i].initDef()));
     }
 }
 

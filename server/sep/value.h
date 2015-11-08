@@ -31,18 +31,20 @@
  * a metric. We keep the aggregation function (min, max, sum), the metric
  * (call, cost, duration), the type descriptor of the metric (the actual data
  * type: int, uint, long, ulong, double and it's size) and the type descriptor
- * of the result of the aggregation function.
+ * of the result of the aggregation function. The two types are always the same
+ * exept for <duration, sum> where the aggregation type is 64-bit while the
+ * metric is 32-bit.
  *
  * E.g. "duration this week", then:
  *      aggregation function = sum,
  *      metric = duration,
  *      metric type descriptor = uint, size = 4bytes,
- *      aggregation type descriptor = uint, size = 4 bytes.
+ *      aggregation type descriptor = ulong, size = 8 bytes.
  */
 class Value
 {
 public:
-    Value(AggrFun aggr_type, tell::store::FieldType field_type, Metric metric, const crossbow::string &name);
+    Value(AggrFun aggr_type, tell::store::FieldType field_type, Metric metric, tell::store::FieldType metric_type, const crossbow::string &name);
 
 public:
     /*
@@ -50,12 +52,15 @@ public:
      */
     AggrFun aggrFun() const { return _aggr_fun; }
     Metric metric() const { return _metric; }
-    tell::store::FieldType type() const { return _field_type.type(); }
-    uint8_t dataSize() const { return _field_type.staticSize(); }
-    const crossbow::string &name() const {return _field_type.name(); }
+    tell::store::FieldType type() const { return _aggr_field.type(); }
+    uint8_t dataSize() const { return _aggr_field.staticSize(); }
+    const crossbow::string &name() const {return _aggr_field.name(); }
+    tell::store::FieldType metricType() const { return _metric_field_base.type(); }
+    uint8_t metricSize() const {return _metric_field_base.staticSize(); }
 
 private:
     AggrFun _aggr_fun;
-    tell::store::Field _field_type;
+    tell::store::Field _aggr_field;
     Metric _metric;
+    tell::store::FieldBase _metric_field_base;
 };

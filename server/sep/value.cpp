@@ -24,10 +24,11 @@
 
 #include <cassert>
 
-Value::Value(AggrFun aggr_fun, tell::store::FieldType field_type, Metric metric, const crossbow::string& name):
+Value::Value(AggrFun aggr_fun, tell::store::FieldType field_type, Metric metric, tell::store::FieldType metric_type, const crossbow::string& name):
 
     _aggr_fun(aggr_fun),
-    _field_type(field_type, name, true),
-    _metric(metric)
+    _aggr_field(field_type, name, true),
+    _metric(metric),
+    _metric_field_base(metric_type)
 {
 }

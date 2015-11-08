@@ -26,7 +26,7 @@
 #include <cstring>
 #include <limits>
 
-#include <tellstore/Record.hpp>
+#include <telldb/Field.hpp>
 
 #include <common/Protocol.hpp>
 #include "server/sep/value.h"
@@ -61,13 +61,13 @@ using namespace aim;
 class AIMSchemaEntry
 {
 public:
-    typedef uint16_t (*InitDefFPtr)(char**);
-    typedef uint16_t (*InitFPtr)(char**, const Event&);
+    typedef tell::db::Field (*InitDefFPtr)();
+    typedef tell::db::Field& (*InitFPtr)(tell::db::Field*, const Event&);
 
-    typedef uint16_t (*UpdateFPtr)(char**, const char**, const AIMSchemaEntry&,
+    typedef tell::db::Field& (*UpdateFPtr)(tell::db::Field*, const AIMSchemaEntry&,
                                    Timestamp, const Event&);
 
-    typedef uint16_t (*MaintainFPtr)(char**, const char**, const AIMSchemaEntry&,
+    typedef tell::db::Field& (*MaintainFPtr)(tell::db::Field*, const AIMSchemaEntry&,
                                      Timestamp, const Event&);
 
     typedef bool (*FilterFPtr)(const Event&);
@@ -83,26 +83,28 @@ public:
      * position the pointer indicates and forward the pointer. They also take a
      * char* pointer for writting the proper value to the compact record.
      */
-    uint16_t initDef(char **tmp) const
+    tell::db::Field initDef() const
     {
-        return _init_def(tmp);
+        return _init_def();
     }
 
-    uint16_t init(char **tmp, const Event& e) const
+    tell::db::Field &init(tell::db::Field* field, const Event& e) const
     {
-        return _init(tmp, e);
+        return _init(field, e);
     }
 
-    uint16_t update(char **tmp, const char **r_tmp, const AIMSchemaEntry& se,
+    tell::db::Field &update(tell::db::Field *field,
+                    const AIMSchemaEntry& se,
                     Timestamp old_ts, const Event& e) const
     {
-        return _update(tmp, r_tmp, se, old_ts, e);
+        return _update(field, se, old_ts, e);
     }
 
-    uint16_t maintain(char** tmp, const char** r_tmp, const AIMSchemaEntry& se,
-                      Timestamp old_ts, const Event& e) const
+    tell::db::Field &maintain(tell::db::Field *field,
+                    const AIMSchemaEntry& se,
+                    Timestamp old_ts, const Event& e) const
     {
-        return _maintain(tmp, r_tmp, se, old_ts, e);
+        return _maintain(field, se, old_ts, e);
     }
 
     bool filter(const Event& event) const
@@ -150,14 +152,14 @@ struct CostExtractor
 
 struct CallExtractor
 {
-    typedef uint type;
+    typedef int32_t type;
     static type extract(const Event &e) { return 1; }
     static type def() { return 0; }
 };
 
 struct DurExtractor
 {
-    typedef uint type;
+    typedef int32_t type;
     static type extract(const Event &e) { return e.duration; }
     static type def() { return 0; }
 };
@@ -175,66 +177,36 @@ struct DurExtractor
  * These functions are used for default initialization of an attribute value.
  */
 template <typename Extractor>
-uint16_t
-initSumDef(char **tmp)
+tell::db::Field&
+initSumDef(tell::db::Field *field)
 {
-    auto t_val = Extractor::def();
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
+    return (*field = tell::db::Field(Extractor::def()));
 }
 
 template <typename Extractor>
-uint16_t
-initMaxDef(char **tmp)
+tell::db::Field&
+initMaxDef(tell::db::Field *field)
 {
-    auto t_val = std::numeric_limits<typename Extractor::type>::min();
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
+    return (*field = tell::db::Field(
+                std::numeric_limits<typename Extractor::type>::min()));
 }
 
 template <typename Extractor>
-uint16_t
-initMinDef(char **tmp)
+tell::db::Field&
+initMinDef(tell::db::Field *field)
 {
-    auto t_val = std::numeric_limits<typename Extractor::type>::max();
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
+    return (*field = tell::db::Field(
+                std::numeric_limits<typename Extractor::type>::max()));
 }
 
 /*
  * The functions below are used for normal initialization using event attribute
- * values.
+ * values. One function for doing this is actually enough
  */
 template <typename Extractor>
-uint16_t initSum(char **tmp, const Event &e)
+tell::db::Field &initSumMinMax(tell::db::Field *field, const Event &e)
 {
-    auto t_val = Extractor::extract(e);
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
-}
-
-template <typename Extractor>
-uint16_t
-initMax(char **tmp, const Event &e)
-{
-    auto t_val = Extractor::extract(e);
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
-}
-
-template <typename Extractor>
-uint16_t
-initMin(char **tmp, const Event &e)
-{
-    auto t_val = Extractor::extract(e);
-    memcpy(*tmp, &t_val, sizeof(t_val));
-    *tmp += sizeof(t_val);
-    return (uint16_t)sizeof(t_val);
+    return (*field) = tell::db::Field(Extractor::extract(e));
 }
 
 /*
@@ -242,102 +214,73 @@ initMin(char **tmp, const Event &e)
  * write the exact same value as before. Otherwise we reset the value.
  */
 template <typename Extractor>
-uint16_t
-maintain(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
+tell::db::Field&
+maintain(tell::db::Field *field, const AIMSchemaEntry &se,
          Timestamp old_ts, const Event &e)
 {
     Timestamp win_start = (old_ts - se.winInitInfo()) / se.winDuration();
     win_start = win_start * se.winDuration() + se.winInitInfo();
 
     if (e.timestamp <= win_start + se.winDuration()) { //belong to the same window
-        memcpy(*tmp, *r_tmp, se.size());                 //copy previous value
-        *r_tmp += se.size();                             //the same value
-        *tmp += se.size();
-        return se.size();
+        //copy previous value the same value
+        return *field;
     }
     else {                                        //different windows->def init
-        uint16_t written = se.initDef(tmp);       //init function forwards tmp
-        *r_tmp += written;
-        return written;
+        return (*field) = se.initDef();               //init function forwards field
     }
 }
 
 template <typename Extractor>
-uint16_t
-updateSum(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
+tell::db::Field&
+updateSum(tell::db::Field *field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
     auto t_val = Extractor::extract(e);     //take the new value from the event
-    typename Extractor::type t_sum;
-
-    memcpy(&t_sum, *r_tmp, sizeof(t_sum));
-    *r_tmp += sizeof(t_sum);
 
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
     if (e.timestamp <= win_start + se.winDuration()) {
-        t_sum += t_val;
+        return ((*field) += t_val);
     }
     else {
-        t_sum = t_val;
+        return (*field) = tell::db::Field(t_val);
     }
-    memcpy(*tmp, &t_sum, sizeof(t_sum));
-    *tmp += sizeof(t_sum);
-    return (uint16_t)sizeof(t_sum);
 }
 
 template <typename Extractor>
-uint16_t
-updateMax(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
+tell::db::Field&
+updateMax(tell::db::Field *field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
-    auto t_val = Extractor::extract(e);
-    typename Extractor::type t_max;
-
-    memcpy(&t_max, *r_tmp, sizeof(t_max));
-    *r_tmp += sizeof(t_max);
+    auto t_val = Extractor::extract(e);     //take the new value from the event
 
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp <= win_start + se.winDuration()) {
-        t_max = std::max(t_max, t_val);
+    if (e.timestamp <= win_start + se.winDuration() && field->value() >= t_val) {
+        return *field;
     }
-    else {
-        t_max = t_val;
-    }
-    memcpy(*tmp, &t_max, sizeof(t_max));
-    *tmp += sizeof(t_max);
-    return (uint16_t)sizeof(t_max);
+    return (*field) = tell::db::Field(t_val);
 }
 
 template <typename Extractor>
-uint16_t
-updateMin(char **tmp, const char **r_tmp, const AIMSchemaEntry &se,
+tell::db::Field&
+updateMin(tell::db::Field *field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
-    auto t_val = Extractor::extract(e);
-    typename Extractor::type t_min;
+    auto t_val = Extractor::extract(e);     //take the new value from the event
 
-    memcpy(&t_min, *r_tmp, sizeof(t_min));
-    *r_tmp += sizeof(t_min);
+    win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
+    win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    win_start = (old_ts - se.winInitInfo()) / se.winDuration();  //calculating closest Monday
-    win_start = win_start * se.winDuration() + se.winInitInfo(); //when the window starts
-
-    if (e.timestamp <= win_start + se.winDuration()) {
-        t_min = std::min(t_min, t_val);
+    if (e.timestamp <= win_start + se.winDuration() && field->value() <= t_val) {
+        return *field;
     }
-    else {
-        t_min = t_val;
-    }
-    memcpy(*tmp, &t_min, sizeof(t_min));
-    *tmp += sizeof(t_min);
-    return (uint16_t)sizeof(t_min);
+    return (*field) = tell::db::Field(t_val);
 }
 
 /*

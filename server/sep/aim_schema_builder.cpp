@@ -90,9 +90,13 @@ Value
 AIMSchemaBuilder::buildValue(sqlite3_stmt *stmt) const
 {
     AggrFun aggr_fun = getAggrFun(sqlite3_signed_column_text(stmt, 3));
-    tell::store::FieldType aggr_data_type = getDataType(sqlite3_signed_column_text(stmt, 4));
+    tell::store::FieldType aggr_data_type =
+            getDataType(sqlite3_signed_column_text(stmt, 4));
     Metric metric = getMetric(sqlite3_signed_column_text(stmt, 5));
-    Value value(aggr_fun, aggr_data_type, metric,  crossbow::string("a_")
+    tell::store::FieldType metric_data_type =
+            getDataType(sqlite3_signed_column_text(stmt, 6));
+    Value value(aggr_fun, aggr_data_type, metric, metric_data_type,
+            crossbow::string("a_")
                 + crossbow::string(sqlite3_signed_column_text(stmt, 0)));
     return value;
 }
@@ -161,7 +165,7 @@ AIMSchemaBuilder::getAggrFun(const char *s_aggr_fun) const
 //lb: adapted this to handle real SQL types
 tell::store::FieldType AIMSchemaBuilder::getDataType(const char *s_data_type) const
 {
-    if (strcmp(s_data_type,"int") == 0 || strcmp(s_data_type,"uint") == 0)
+    if (strcmp(s_data_type,"uint") == 0 || strcmp(s_data_type,"int") == 0)
         return tell::store::FieldType::INT;
     if (strcmp(s_data_type,"double") == 0)
         return tell::store::FieldType::DOUBLE;

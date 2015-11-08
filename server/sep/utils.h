@@ -33,12 +33,12 @@
  */
 typedef int64_t Timestamp;
 
-//lb: commented out because we will use tellstore::StdTypes instead
-///*
-// * Different types of predicate operators.
-// */
-//enum class Operator {LTE=0, LT, E, GRE, GR, LIKE};
+/*
+ * Different types of predicate operators.
+ */
+enum class Operator {LTE=0, LT, E, GRE, GR, LIKE};
 
+//lb: commented out because we will use tellstore::StdTypes instead
 ///*
 // * C++ data type of AM attributes.
 // */
