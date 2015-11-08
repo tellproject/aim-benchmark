@@ -158,7 +158,7 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
                         "cost_sum_all_week", tuple);
                 int64_t durSumAllWeek = projectionResultTable.field<int64_t>(
                         "dur_sum_all_week", tuple);
-                int32_t callsSumAllWeek  = projectionResultTable.field<double>(
+                int32_t callsSumAllWeek  = projectionResultTable.field<int32_t>(
                             "calls_sum_all_week", tuple);
                 if (costs.find(callsSumAllWeek) == costs.end()) {
                     // entry does not exists yet, create it

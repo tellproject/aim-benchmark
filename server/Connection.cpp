@@ -35,16 +35,15 @@ namespace aim {
 struct EventProcessor : public std::enable_shared_from_this<EventProcessor> {
 private:
     boost::asio::io_service& mService;
+    Transactions& mTransactions;
     std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
 public:
     std::vector<Event> events;
-    EventProcessor(boost::asio::io_service& service)
-        : mService(service)
+    EventProcessor(boost::asio::io_service& service, Transactions& transactions)
+        : mService(service), mTransactions(transactions)
     {}
-    void runTransaction(const tell::db::Transaction& tx, Context& context) {
-        //for (const auto& event : events) {
-        //    // process event
-        //}
+    void runTransaction(tell::db::Transaction& tx, Context& context) {
+        mTransactions.processEvent(tx, context, events);
         mService.post([this]() {
             mFiber->wait();
             mFiber.reset(nullptr);
@@ -93,6 +92,14 @@ public:
             auto wFuture = tx.openTable("wt");
             auto wideTable = wFuture.get();
             auto tellSchema = tx.getSchema(wideTable);
+
+            // initialize this vector
+            context.tellToAIMIndexMapping.insert(
+                    context.tellToAIMIndexMapping.begin(),
+                        aimSchema.numOfEntries(),0);
+            for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
+                context.tellToAIMIndexMapping[
+                            tellSchema.idOf(aimSchema[i].name())] = i;
 
             context.scanMemoryMananger = scanMemoryManager;
 
@@ -149,8 +156,7 @@ public:
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         if (mEventBatch.size() >= mEventBatchSize) {
-            // execute transaction
-            auto processor = std::make_shared<EventProcessor>(mService);
+            auto processor = std::make_shared<EventProcessor>(mService, mTransactions);
             processor->events.swap(mEventBatch);
             mEventBatch.reserve(mEventBatchSize);
         }

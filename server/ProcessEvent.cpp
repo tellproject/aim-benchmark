@@ -25,6 +25,7 @@
 #include <crossbow/enum_underlying.hpp>
 
 #include <map>
+#include <vector>
 
 #include <common/dimension-tables-unique-values.h>
 #include "Connection.hpp"
@@ -32,10 +33,27 @@
 namespace aim {
 
 using namespace tell::db;
-using namespace tell::store;
 
-void Transactions::processEvent(tell::db::Transaction& tx, Context &Context,const Event& in) {
-    // TODO: implement
+void Transactions::processEvent(Transaction& tx, Context &context, std::vector<Event> &events) {
+    auto wFuture = tx.openTable("wt");
+    auto wideTable = wFuture.get();
+    auto schema = tx.getSchema(wideTable);
+
+    std::vector<Future<Tuple>> eventFutures;
+    eventFutures.reserve(events.size());
+
+    // get futures in revers order
+    for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
+        eventFutures.emplace_back(tx.get(wideTable, tell::db::key_t{iter->caller_id}));
+    }
+
+    // get the actual values in reverse reverse = actual order
+    for (auto iter = eventFutures.rbegin(); iter < eventFutures.rend(); ++iter) {
+        Tuple oldTuple = iter->get();
+        Tuple newTuple (oldTuple);
+	// TODO: continue here...
+    }
+
 }
 
 } // namespace aim

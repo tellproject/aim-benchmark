@@ -64,13 +64,13 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             std::map<id_t, std::tuple<AggregationType, FieldType,
                     crossbow::string>> aggregationAttributes;
             aggregationAttributes[context.durMaxLocalWeek] = std::make_tuple(
-                    AggregationType::MAX, FieldType::DOUBLE, "max_local_week");
+                    AggregationType::MAX, FieldType::INT, "max_local_week");
             aggregationAttributes[context.durMaxLocalDay] = std::make_tuple(
-                    AggregationType::MAX, FieldType::DOUBLE, "max_local_day");
+                    AggregationType::MAX, FieldType::INT, "max_local_day");
             aggregationAttributes[context.durMaxDistantWeek] = std::make_tuple(
-                    AggregationType::MAX, FieldType::DOUBLE, "max_distant_week");
+                    AggregationType::MAX, FieldType::INT, "max_distant_week");
             aggregationAttributes[context.durMaxDistantDay] = std::make_tuple(
-                    AggregationType::MAX, FieldType::DOUBLE, "max_distant_day");
+                    AggregationType::MAX, FieldType::INT, "max_distant_day");
 
             Schema resultSchema(schema.type());
 
@@ -96,10 +96,10 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
                 const char* tuple;
                 size_t tupleLength;
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_local_week = resultTable.field<int64_t>("max_local_week", tuple);
-                result.max_local_day = resultTable.field<int64_t>("max_local_day", tuple);
-                result.max_distant_week = resultTable.field<int64_t>("max_distant_week", tuple);
-                result.max_distant_day = resultTable.field<int64_t>("max_distant_day", tuple);
+                result.max_local_week = resultTable.field<int32_t>("max_local_week", tuple);
+                result.max_local_day = resultTable.field<int32_t>("max_local_day", tuple);
+                result.max_distant_week = resultTable.field<int32_t>("max_distant_week", tuple);
+                result.max_distant_day = resultTable.field<int32_t>("max_distant_day", tuple);
             }
 
             if (scanIterator->error()) {
@@ -124,7 +124,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             selectionWriter.align(sizeof(uint32_t));
             selectionWriter.write<int32_t>(result.max_local_week);      // we are going to vary this
 
-            std::vector<std::pair<id_t, int64_t>> selectionValues;
+            std::vector<std::pair<id_t, int32_t>> selectionValues;
             selectionValues.reserve(4);
             selectionValues.emplace_back(context.durMaxLocalWeek, result.max_local_week);
             selectionValues.emplace_back(context.durMaxLocalDay, result.max_local_day);
@@ -160,25 +160,25 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             auto &scanIterator = scanIterators[0];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_local_week_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
+                result.max_local_week_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[1];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_local_day_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
+                result.max_local_day_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[2];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_distant_week_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
+                result.max_distant_week_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[3];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_distant_day_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
+                result.max_distant_day_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
             }
 
             // check for errors

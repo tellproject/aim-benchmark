@@ -265,7 +265,7 @@ struct Q5Out {
         using is_serializable = crossbow::is_serializable;
         crossbow::string region_name;
         double sum_cost_local_calls_week;
-        uint64_t sum_cost_longdistance_calls_week;
+        double sum_cost_longdistance_calls_week;
 
         template<class Archiver>
         void operator&(Archiver& ar) {
@@ -312,13 +312,13 @@ struct Q6Out {
     bool success = true;
     crossbow::string error;
     uint64_t max_local_week_id;
-    uint32_t max_local_week;
+    int32_t max_local_week;
     uint64_t max_local_day_id;
-    uint32_t max_local_day;
+    int32_t max_local_day;
     uint64_t max_distant_week_id;
-    uint32_t max_distant_week;
+    int32_t max_distant_week;
     uint64_t max_distant_day_id;
-    uint32_t max_distant_day;
+    int32_t max_distant_day;
 
     template<class Archiver>
     void operator&(Archiver& ar) {
