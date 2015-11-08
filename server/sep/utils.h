@@ -25,23 +25,24 @@
 #include <string>
 #include <thread>
 
+#include <tellstore/Record.hpp>
+
 /*
  * This file contains a bunch of constants and auxiliary information we use
  * for the project.
  */
-typedef long long Timestamp;
-typedef unsigned long ulong;
-typedef unsigned int uint;
+typedef int64_t Timestamp;
 
-/*
- * Different types of predicate operators.
- */
-enum class Operator {LTE=0, LT, E, GRE, GR, LIKE};
+//lb: commented out because we will use tellstore::StdTypes instead
+///*
+// * Different types of predicate operators.
+// */
+//enum class Operator {LTE=0, LT, E, GRE, GR, LIKE};
 
-/*
- * C++ data type of AM attributes.
- */
-enum class DataType {INT=0, UINT, ULONG, DOUBLE};
+///*
+// * C++ data type of AM attributes.
+// */
+//enum class DataType {INT=0, LONG, DOUBLE};
 
 /*
  * Aggregation types for the MV attributes.
@@ -87,21 +88,9 @@ const ulong MSECS_PER_WEEK = 604800000;
  */
 const Timestamp FIRST_MONDAY= 345600000;
 
-std::string stringDataType(DataType type);
+//std::string stringDataType(DataType type);
 std::string stringAggrFun(AggrFun fun);
 std::string stringFilter(FilterType type);
 std::string stringMetric(Metric metric);
 std::string stringWindowType(WindowType type);
 std::string stringWindowSize(ulong size);
-
-/*
- * This formula determines whether a subscriber should be stored
- * in the underline server. Same formula is used on the sep client
- * side.
- */
-uint32_t belongToThisServer(ulong sub_id, uint server_id);
-
-/*
- * Returns the number of cores the system has.
- */
-uint findAvailableCores();

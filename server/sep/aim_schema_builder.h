@@ -79,7 +79,7 @@ private:
      * These functions parse Value information.
      */
     AggrFun getAggrFun(const char *) const;
-    DataType getDataType(const char *) const;
+    tell::store::FieldType getDataType(const char *) const;
     Metric getMetric(const char *) const;
 
     /*

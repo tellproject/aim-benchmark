@@ -26,6 +26,8 @@
 #include <cstring>
 #include <limits>
 
+#include <tellstore/Record.hpp>
+
 #include <common/Protocol.hpp>
 #include "server/sep/value.h"
 #include "server/sep/window.h"
@@ -117,8 +119,8 @@ public:
     FilterType filterType() const { return _filter_type; }
     uint16_t size() const { return _size; }
 
-    //lb: added for generic benchmarking framework
-    DataType type() const { return _value.type(); }
+    tell::store::FieldType type() const { return _value.type(); }
+    const crossbow::string &name() const { return _value.name(); }
 
 private:
     Value _value;

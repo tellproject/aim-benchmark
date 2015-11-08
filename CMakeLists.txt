@@ -60,8 +60,6 @@ set(SERVER_SRC
     server/sep/schema_and_index_builder.h
     server/sep/sep.cpp
     server/sep/sep.h
-    server/sep/type_descriptor.cpp
-    server/sep/type_descriptor.h
     server/sep/utils.cpp
     server/sep/utils.h
     server/sep/value.cpp

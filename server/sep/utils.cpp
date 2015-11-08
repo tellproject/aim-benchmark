@@ -24,22 +24,22 @@
 
 #include <cassert>
 
-std::string
-stringDataType(DataType type)
-{
-    switch (type) {
-    case DataType::INT:
-        return "int";
-    case DataType::UINT:
-        return "uint";
-    case DataType::ULONG:
-        return "ulong";
-    case DataType::DOUBLE:
-        return "double";
-    default:
-        return "data_type error";
-    }
-}
+//std::string
+//stringDataType(DataType type)
+//{
+//    switch (type) {
+//    case DataType::INT:
+//        return "int";
+//    case DataType::UINT:
+//        return "uint";
+//    case DataType::ULONG:
+//        return "ulong";
+//    case DataType::DOUBLE:
+//        return "double";
+//    default:
+//        return "data_type error";
+//    }
+//}
 
 std::string
 stringAggrFun(AggrFun fun)

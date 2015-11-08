@@ -70,7 +70,7 @@ public:
     friend std::ostream& operator<<(std::ostream& out, const AIMSchema &schema);
 
     //lb: added for generic benchmarking framework
-    DataType typeAt(uint pos) const { return _entries[pos].type(); }
+    tell::store::FieldType typeAt(uint pos) const { return _entries[pos].type(); }
 
     //lb: added for TELL integration
     crossbow::string getName(Metric metric, AggrFun aggr_fun, FilterType filter_type,

@@ -27,23 +27,6 @@ namespace aim {
 
 using namespace tell;
 
-namespace {
-
-inline store::FieldType translateType(DataType aimType) {
-    switch(aimType) {
-    case DataType::INT:
-    case DataType::UINT:
-        return store::FieldType::INT;       //keeping our fingers crossed that we do not need the MSB!!
-    case DataType::ULONG:
-        return store::FieldType::BIGINT;    //keeping our fingers crossed that we do not need the MSB!!
-    case DataType::DOUBLE:
-        return store::FieldType::DOUBLE;
-    }
-    return store::FieldType::NOTYPE;
-}
-
-} // anonymouse namespace
-
 void createSchema(tell::db::Transaction& transaction, const AIMSchema &aimSchema) {
     store::Schema schema(store::TableType::TRANSACTIONAL);
     // Primary key: subscriber_id
@@ -52,7 +35,7 @@ void createSchema(tell::db::Transaction& transaction, const AIMSchema &aimSchema
 
     // wide table columns
     for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
-        schema.addField(translateType(aimSchema[i].type()), "a_" + crossbow::to_string(i+1), true);
+        schema.addField(aimSchema[i].type(), aimSchema[i].name(), true);
 
     // dimension columns
     schema.addField(store::FieldType::SMALLINT, "subscription_type_id", true);

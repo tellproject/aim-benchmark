@@ -38,50 +38,27 @@ namespace aim {
 
 namespace { // anonymous namesapce
 
-/**
- * TODO: this is kind of a hack, but it works... refactor it sometime!
- */
 inline void addField(std::unordered_map<crossbow::string, Field> &tuple,
-                     char *tmp, DataType type,
-                     crossbow::string fieldName) {
+                     char *tmp, tell::store::FieldType type,
+                     const crossbow::string &fieldName) {
     switch (type) {
-    case DataType::ULONG:
-    {
-        uint64_t u1 = *(reinterpret_cast<uint64_t*>(tmp));
-        if (u1 == std::numeric_limits<uint64_t>::min()) {
-            tuple [fieldName] = std::numeric_limits<int64_t>::min();
-        } else if (u1 == std::numeric_limits<uint64_t>::max()) {
-            tuple [fieldName] = std::numeric_limits<int64_t>::max();
-        } if (u1 == 0) {
-            tuple [fieldName] = 0;
-        } else {
-            LOG_ASSERT(false, "impossible ulong value at initialization!")
-        }
-        break;
-    }
-    case DataType::UINT:
-    {
-        uint32_t i1 = *(reinterpret_cast<uint32_t*>(tmp));
-        if (i1 == std::numeric_limits<uint32_t>::min()) {
-            tuple [fieldName] = std::numeric_limits<int32_t>::min();
-        } else if (i1 == std::numeric_limits<uint32_t>::max()) {
-            tuple [fieldName] = std::numeric_limits<int32_t>::max();
-        } if (i1 == 0) {
-            tuple [fieldName] = 0;
-        } else {
-            LOG_ASSERT(false, "impossible uint value at initialization!")
-        }
-        break;
-    }
-    case DataType::DOUBLE:
+    case tell::store::FieldType::DOUBLE:
     {
         tuple [fieldName] = *(reinterpret_cast<double*>(tmp));
         break;
     }
-    case DataType::INT:
+    case tell::store::FieldType::INT:
     {
         tuple [fieldName] = *(reinterpret_cast<int32_t*>(tmp));
+        break;
     }
+    case tell::store::FieldType::BIGINT:
+    {
+        tuple [fieldName] = *(reinterpret_cast<int64_t*>(tmp));
+        break;
+    }
+    default:
+        LOG_ASSERT(false, "AIM field type must be INT, BIGINT, or DOUBLE!")
     }
 }
 
@@ -91,7 +68,7 @@ inline void initializeWideTableColumn (std::unordered_map<crossbow::string, Fiel
     for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
     {
         aimSchema[i].initDef(&tmp);
-        addField(tuple, tmp, aimSchema[i].type(), "a_" + crossbow::to_string(i));
+        addField(tuple, tmp, aimSchema[i].type(), aimSchema[i].name());
     }
 }
 
