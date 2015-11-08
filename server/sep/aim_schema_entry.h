@@ -177,26 +177,26 @@ struct DurExtractor
  * These functions are used for default initialization of an attribute value.
  */
 template <typename Extractor>
-tell::db::Field&
-initSumDef(tell::db::Field *field)
+tell::db::Field
+initSumDef()
 {
-    return (*field = tell::db::Field(Extractor::def()));
+    return tell::db::Field(Extractor::def());
 }
 
 template <typename Extractor>
-tell::db::Field&
-initMaxDef(tell::db::Field *field)
+tell::db::Field
+initMaxDef()
 {
-    return (*field = tell::db::Field(
-                std::numeric_limits<typename Extractor::type>::min()));
+    return tell::db::Field(
+                std::numeric_limits<typename Extractor::type>::min());
 }
 
 template <typename Extractor>
-tell::db::Field&
-initMinDef(tell::db::Field *field)
+tell::db::Field
+initMinDef()
 {
-    return (*field = tell::db::Field(
-                std::numeric_limits<typename Extractor::type>::max()));
+    return tell::db::Field(
+                std::numeric_limits<typename Extractor::type>::max());
 }
 
 /*
@@ -242,7 +242,7 @@ updateSum(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
     if (e.timestamp <= win_start + se.winDuration()) {
-        return ((*field) += t_val);
+        return ((*field) += tell::db::Field(t_val));
     }
     else {
         return (*field) = tell::db::Field(t_val);
@@ -260,7 +260,7 @@ updateMax(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp <= win_start + se.winDuration() && field->value() >= t_val) {
+    if (e.timestamp <= win_start + se.winDuration() && *field >= t_val) {
         return *field;
     }
     return (*field) = tell::db::Field(t_val);
@@ -277,7 +277,7 @@ updateMin(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp <= win_start + se.winDuration() && field->value() <= t_val) {
+    if (e.timestamp <= win_start + se.winDuration() && *field <= t_val) {
         return *field;
     }
     return (*field) = tell::db::Field(t_val);

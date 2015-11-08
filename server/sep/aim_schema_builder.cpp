@@ -308,26 +308,26 @@ AIMSchemaBuilder::setMinMetric(const Metric metric, SE::InitDefFPtr *init_def_f,
     switch (metric) {
     case Metric::CALL:
         *init_def_f = &initMinDef<CallExtractor>;
-        *init_f = &initMin<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateMin<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
         break;
     case Metric::COST:
         *init_def_f = &initMinDef<CostExtractor>;
-        *init_f = &initMin<CostExtractor>;
+        *init_f = &initSumMinMax<CostExtractor>;
         *upd_f = &updateMin<CostExtractor>;
         *maint_f = &maintain<CostExtractor>;
         break;
     case Metric::DUR:
         *init_def_f = &initMinDef<DurExtractor>;
-        *init_f = &initMin<DurExtractor>;
+        *init_f = &initSumMinMax<DurExtractor>;
         *upd_f = &updateMin<DurExtractor>;
         *maint_f = &maintain<DurExtractor>;
         break;
     default:
         assert(false);
         *init_def_f = &initMinDef<CallExtractor>;
-        *init_f = &initMin<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateMin<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
     }
@@ -344,26 +344,26 @@ AIMSchemaBuilder::setMaxMetric(const Metric metric, SE::InitDefFPtr *init_def_f,
     switch (metric) {
     case Metric::CALL:
         *init_def_f = &initMaxDef<CallExtractor>;
-        *init_f = &initMax<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateMax<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
         break;
     case Metric::COST:
         *init_def_f = &initMaxDef<CostExtractor>;
-        *init_f = &initMax<CostExtractor>;
+        *init_f = &initSumMinMax<CostExtractor>;
         *upd_f = &updateMax<CostExtractor>;
         *maint_f = &maintain<CostExtractor>;
         break;
     case Metric::DUR:
         *init_def_f = &initMaxDef<DurExtractor>;
-        *init_f = &initMax<DurExtractor>;
+        *init_f = &initSumMinMax<DurExtractor>;
         *upd_f = &updateMax<DurExtractor>;
         *maint_f = &maintain<DurExtractor>;
         break;
     default:
         assert(false);
         *init_def_f = &initMaxDef<CallExtractor>;
-        *init_f = &initMax<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateMax<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
     }
@@ -380,26 +380,26 @@ AIMSchemaBuilder::setSumMetric(const Metric metric, SE::InitDefFPtr *init_def_f,
     switch (metric) {
     case Metric::CALL:
         *init_def_f = &initSumDef<CallExtractor>;
-        *init_f = &initSum<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateSum<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
         break;
     case Metric::COST:
         *init_def_f = &initSumDef<CostExtractor>;
-        *init_f = &initSum<CostExtractor>;
+        *init_f = &initSumMinMax<CostExtractor>;
         *upd_f = &updateSum<CostExtractor>;
         *maint_f = &maintain<CostExtractor>;
         break;
     case Metric::DUR:
         *init_def_f = &initSumDef<DurExtractor>;
-        *init_f = &initSum<DurExtractor>;
+        *init_f = &initSumMinMax<DurExtractor>;
         *upd_f = &updateSum<DurExtractor>;
         *maint_f = &maintain<DurExtractor>;
         break;
     default:
         assert(false);
         *init_def_f = &initSumDef<CallExtractor>;
-        *init_f = &initSum<CallExtractor>;
+        *init_f = &initSumMinMax<CallExtractor>;
         *upd_f = &updateSum<CallExtractor>;
         *maint_f = &maintain<CallExtractor>;
     }

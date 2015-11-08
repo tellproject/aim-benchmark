@@ -54,15 +54,6 @@ set(SERVER_SRC
     server/sep/aim_schema_builder.h
     server/sep/aim_schema_entry.cpp
     server/sep/aim_schema_entry.h
-    server/sep/am_record.cpp
-    server/sep/am_record.h
-    server/sep/campaign.cpp
-    server/sep/campaign.h
-    server/sep/conjunct.cpp
-    server/sep/conjunct.h
-    server/sep/Math.h
-    server/sep/predicate.cpp
-    server/sep/predicate.h
     server/sep/schema_and_index_builder.cpp
     server/sep/schema_and_index_builder.h
     server/sep/sep.cpp
