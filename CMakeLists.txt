@@ -35,12 +35,19 @@ set(SERVER_SRC
     server/main.cpp
     server/Connection.cpp
     server/Connection.hpp
-    server/Transactions.hpp
-    server/Transactions.cpp
     server/CreateSchema.cpp
     server/CreateSchema.hpp
     server/Populate.cpp
     server/Populate.hpp
+    server/Transactions.hpp
+    server/Q1Transaction.cpp
+    server/Q2Transaction.cpp
+    server/Q3Transaction.cpp
+    server/Q4Transaction.cpp
+    server/Q5Transaction.cpp
+    server/Q6Transaction.cpp
+    server/Q7Transaction.cpp
+    server/ProcessEvent.cpp
     server/sep/aim_schema.cpp
     server/sep/aim_schema.h
     server/sep/aim_schema_builder.cpp
