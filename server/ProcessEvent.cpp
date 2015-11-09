@@ -55,8 +55,7 @@ void Transactions::processEvent(Transaction& tx,
         for (auto iter = tupleFutures.rbegin();
                     iter < tupleFutures.rend(); ++iter, ++eventIter) {
             Tuple oldTuple = iter->get();
-            Timestamp ts = boost::any_cast<Timestamp>(
-                        oldTuple[context.timeStampId].value());
+            Timestamp ts =  oldTuple[context.timeStampId].value<Timestamp>();
             Tuple newTuple (oldTuple);
             for (auto &pair: context.tellIDToAIMSchemaEntry) {
                 pair.second.update(&newTuple[pair.first], pair.second, ts, *eventIter);
