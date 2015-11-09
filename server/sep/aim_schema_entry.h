@@ -62,12 +62,12 @@ class AIMSchemaEntry
 {
 public:
     typedef tell::db::Field (*InitDefFPtr)();
-    typedef tell::db::Field& (*InitFPtr)(tell::db::Field*, const Event&);
+    typedef tell::db::Field& (*InitFPtr)(tell::db::Field&, const Event&);
 
-    typedef tell::db::Field& (*UpdateFPtr)(tell::db::Field*, const AIMSchemaEntry&,
+    typedef tell::db::Field& (*UpdateFPtr)(tell::db::Field& , const AIMSchemaEntry&,
                                    Timestamp, const Event&);
 
-    typedef tell::db::Field& (*MaintainFPtr)(tell::db::Field*, const AIMSchemaEntry&,
+    typedef tell::db::Field& (*MaintainFPtr)(tell::db::Field&, const AIMSchemaEntry&,
                                      Timestamp, const Event&);
 
     typedef bool (*FilterFPtr)(const Event&);
@@ -88,19 +88,19 @@ public:
         return _init_def();
     }
 
-    tell::db::Field &init(tell::db::Field* field, const Event& e) const
+    tell::db::Field &init(tell::db::Field& field, const Event& e) const
     {
         return _init(field, e);
     }
 
-    tell::db::Field &update(tell::db::Field *field,
+    tell::db::Field &update(tell::db::Field &field,
                     const AIMSchemaEntry& se,
                     Timestamp old_ts, const Event& e) const
     {
         return _update(field, se, old_ts, e);
     }
 
-    tell::db::Field &maintain(tell::db::Field *field,
+    tell::db::Field &maintain(tell::db::Field &field,
                     const AIMSchemaEntry& se,
                     Timestamp old_ts, const Event& e) const
     {
@@ -204,9 +204,9 @@ initMinDef()
  * values. One function for doing this is actually enough
  */
 template <typename Extractor>
-tell::db::Field &initSumMinMax(tell::db::Field *field, const Event &e)
+tell::db::Field &initSumMinMax(tell::db::Field &field, const Event &e)
 {
-    return (*field) = tell::db::Field(Extractor::extract(e));
+    return (field = tell::db::Field(Extractor::extract(e)));
 }
 
 /*
@@ -215,7 +215,7 @@ tell::db::Field &initSumMinMax(tell::db::Field *field, const Event &e)
  */
 template <typename Extractor>
 tell::db::Field&
-maintain(tell::db::Field *field, const AIMSchemaEntry &se,
+maintain(tell::db::Field &field, const AIMSchemaEntry &se,
          Timestamp old_ts, const Event &e)
 {
     Timestamp win_start = (old_ts - se.winInitInfo()) / se.winDuration();
@@ -223,16 +223,16 @@ maintain(tell::db::Field *field, const AIMSchemaEntry &se,
 
     if (e.timestamp <= win_start + se.winDuration()) { //belong to the same window
         //copy previous value the same value
-        return *field;
+        return field;
     }
     else {                                        //different windows->def init
-        return (*field) = se.initDef();               //init function forwards field
+        return (field = se.initDef());               //init function forwards field
     }
 }
 
 template <typename Extractor>
 tell::db::Field&
-updateSum(tell::db::Field *field, const AIMSchemaEntry &se,
+updateSum(tell::db::Field &field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
@@ -242,16 +242,16 @@ updateSum(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
     if (e.timestamp <= win_start + se.winDuration()) {
-        return ((*field) += tell::db::Field(t_val));
+        return ((field) += tell::db::Field(t_val));
     }
     else {
-        return (*field) = tell::db::Field(t_val);
+        return (field = tell::db::Field(t_val));
     }
 }
 
 template <typename Extractor>
 tell::db::Field&
-updateMax(tell::db::Field *field, const AIMSchemaEntry &se,
+updateMax(tell::db::Field &field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
@@ -260,15 +260,15 @@ updateMax(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp <= win_start + se.winDuration() && *field >= t_val) {
-        return *field;
+    if (e.timestamp <= win_start + se.winDuration() && field >= tell::db::Field(t_val)) {
+        return field;
     }
-    return (*field) = tell::db::Field(t_val);
+    return (field = tell::db::Field(t_val));
 }
 
 template <typename Extractor>
 tell::db::Field&
-updateMin(tell::db::Field *field, const AIMSchemaEntry &se,
+updateMin(tell::db::Field &field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
     Timestamp win_start;
@@ -277,10 +277,10 @@ updateMin(tell::db::Field *field, const AIMSchemaEntry &se,
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (e.timestamp <= win_start + se.winDuration() && *field <= t_val) {
-        return *field;
+    if (e.timestamp <= win_start + se.winDuration() && field <= tell::db::Field(t_val)) {
+        return field;
     }
-    return (*field) = tell::db::Field(t_val);
+    return (field = tell::db::Field(t_val));
 }
 
 /*
