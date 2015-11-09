@@ -34,26 +34,40 @@ namespace aim {
 
 using namespace tell::db;
 
-void Transactions::processEvent(Transaction& tx, Context &context, std::vector<Event> &events) {
-    auto wFuture = tx.openTable("wt");
-    auto wideTable = wFuture.get();
-    auto schema = tx.getSchema(wideTable);
+void Transactions::processEvent(Transaction& tx,
+            Context &context, std::vector<Event> &events) {
 
-    std::vector<Future<Tuple>> eventFutures;
-    eventFutures.reserve(events.size());
+    try {
+        auto wFuture = tx.openTable("wt");
+        auto wideTable = wFuture.get();
 
-    // get futures in revers order
-    for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
-        eventFutures.emplace_back(tx.get(wideTable, tell::db::key_t{iter->caller_id}));
+        std::vector<Future<Tuple>> tupleFutures;
+        tupleFutures.reserve(events.size());
+
+        // get futures in revers order
+        for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
+            tupleFutures.emplace_back(
+                        tx.get(wideTable, tell::db::key_t{iter->caller_id}));
+        }
+
+        auto eventIter = events.begin();
+        // get the actual values in reverse reverse = actual order
+        for (auto iter = tupleFutures.rbegin();
+                    iter < tupleFutures.rend(); ++iter, ++eventIter) {
+            Tuple oldTuple = iter->get();
+            Timestamp ts = boost::any_cast<Timestamp>(
+                        oldTuple[context.timeStampId].value());
+            Tuple newTuple (oldTuple);
+            for (auto &pair: context.tellIDToAIMSchemaEntry) {
+                pair.second.update(&newTuple[pair.first], pair.second, ts, *eventIter);
+            }
+            tx.update(wideTable, tell::db::key_t{eventIter->caller_id},
+                      oldTuple, newTuple);
+        }
+
+        tx.commit();
+    } catch (std::exception& ex) {
     }
-
-    // get the actual values in reverse reverse = actual order
-    for (auto iter = eventFutures.rbegin(); iter < eventFutures.rend(); ++iter) {
-        Tuple oldTuple = iter->get();
-        Tuple newTuple (oldTuple);
-	// TODO: continue here...
-    }
-
 }
 
 } // namespace aim

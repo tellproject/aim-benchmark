@@ -94,16 +94,21 @@ public:
             auto tellSchema = tx.getSchema(wideTable);
 
             // initialize this vector
-            context.tellToAIMIndexMapping.insert(
-                    context.tellToAIMIndexMapping.begin(),
-                        aimSchema.numOfEntries(),0);
-            for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
-                context.tellToAIMIndexMapping[
-                            tellSchema.idOf(aimSchema[i].name())] = i;
+            context.tellIDToAIMSchemaEntry.reserve(aimSchema.numOfEntries());
+            std::map<id_t, AIMSchemaEntry> tmpMap;
+
+            for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i) {
+                tmpMap.emplace(std::make_pair(
+                            tellSchema.idOf(aimSchema[i].name()),
+                                    aimSchema[i]));
+            }
+            for (auto &pair: tmpMap)
+                context.tellIDToAIMSchemaEntry.emplace_back(std::move(pair));
 
             context.scanMemoryMananger = scanMemoryManager;
 
             context.subscriberId = tellSchema.idOf("subscriber_id");
+            context.timeStampId = tellSchema.idOf("last_updated");
 
             context.callsSumLocalWeek = tellSchema.idOf(aimSchema.getName(
                     Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));

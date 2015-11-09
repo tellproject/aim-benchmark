@@ -39,9 +39,10 @@ struct Context {
 
     tell::store::ScanMemoryManager *scanMemoryMananger;
 
-    std::vector<int> tellToAIMIndexMapping;
+    std::vector<std::pair<id_t, AIMSchemaEntry>> tellIDToAIMSchemaEntry;
 
     id_t subscriberId;
+    id_t timeStampId;
 
     id_t callsSumLocalWeek;
     id_t callsSumAllWeek;

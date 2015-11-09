@@ -64,7 +64,8 @@ int main(int argc, const char** argv) {
     crossbow::string commitManager;
     crossbow::string storageNodes;
     unsigned eventBatchSize = 100u;
-    unsigned processingThreads = 1u;
+    unsigned networkThreads = 1u;
+    unsigned processingThreads = 2u;
     unsigned scanBlockSize = 4096u;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
@@ -75,8 +76,9 @@ int main(int argc, const char** argv) {
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"}),
             value<'b'>("batch-size", &eventBatchSize, tag::description{"size of event batches"}),
-            value<'t'>("threads", &processingThreads, tag::description{"number of processing threads"}),
-            value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
+            value<'n'>("network-threads", &networkThreads, tag::description{"number of networking threads"}),
+            value<'t'>("processing-threads", &processingThreads, tag::description{"number of processing threads"}),
+            value<'m'>("block-size", &networkThreads, tag::description{"size of scan memory blocks"})
             );
     try {
         parse(opts, argc, argv);
@@ -102,11 +104,12 @@ int main(int argc, const char** argv) {
 
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
     tell::store::ClientConfig config;
+    config.numNetworkThreads = processingThreads;
     config.commitManager = config.parseCommitManager(commitManager);
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<aim::Context> clientManager(config);
     clientManager.allocateScanMemory(
-            config.tellStore.size() * processingThreads, scanBlockSize);
+            config.tellStore.size() * networkThreads, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
@@ -143,8 +146,8 @@ int main(int argc, const char** argv) {
         accept(service, a, clientManager, aimSchema, eventBatchSize);
 
         std::vector<std::thread> threads;
-        threads.reserve(processingThreads-1);
-        for (unsigned i = 0; i < processingThreads-1; ++i)
+        threads.reserve(networkThreads-1);
+        for (unsigned i = 0; i < networkThreads-1; ++i)
             threads.emplace_back([&service]{service.run();});
         service.run();
         for (auto &thread: threads)

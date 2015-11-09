@@ -179,6 +179,7 @@ int main(int argc, const char** argv) {
                     << std::endl;
             }
         }
+        std::cout << '\a';
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }
