@@ -159,6 +159,7 @@ public:
             auto processor = std::make_shared<EventProcessor>(mService, mTransactions);
             processor->events.swap(mEventBatch);
             mEventBatch.reserve(mEventBatchSize);
+            processor->start(mClientManager);
         }
         mEventBatch.push_back(args);
     }
