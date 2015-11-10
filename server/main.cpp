@@ -42,16 +42,20 @@ void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
         tell::db::ClientManager<aim::Context>& clientManager,
         const AIMSchema &aimSchema,
+        size_t processingThreads,
         unsigned eventBatchSize) {
-    auto conn = new aim::Connection(service, clientManager, aimSchema, eventBatchSize);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, aimSchema, eventBatchSize](const boost::system::error_code &err) {
+    auto conn = new aim::Connection(service, clientManager, aimSchema,
+                processingThreads, eventBatchSize);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager,
+                processingThreads, aimSchema, eventBatchSize](
+                   const boost::system::error_code &err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, clientManager, aimSchema, eventBatchSize);
+        accept(service, a, clientManager, aimSchema, processingThreads, eventBatchSize);
     });
 }
 
@@ -76,9 +80,9 @@ int main(int argc, const char** argv) {
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"}),
             value<'b'>("batch-size", &eventBatchSize, tag::description{"size of event batches"}),
-            value<'n'>("network-threads", &networkThreads, tag::description{"number of networking threads"}),
-            value<'t'>("processing-threads", &processingThreads, tag::description{"number of processing threads"}),
-            value<'m'>("block-size", &networkThreads, tag::description{"size of scan memory blocks"})
+            value<'n'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"}),
+            value<'t'>("processing-threads", &processingThreads, tag::description{"number of (Infiniband) processing threads"}),
+            value<'m'>("block-size", &scanBlockSize, tag::description{"size of scan memory blocks"})
             );
     try {
         parse(opts, argc, argv);
@@ -109,7 +113,7 @@ int main(int argc, const char** argv) {
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<aim::Context> clientManager(config);
     clientManager.allocateScanMemory(
-            config.tellStore.size() * networkThreads, scanBlockSize);
+            config.tellStore.size() * processingThreads * 2, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
@@ -143,7 +147,8 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager, aimSchema, eventBatchSize);
+        accept(service, a, clientManager, aimSchema, config.numNetworkThreads,
+               eventBatchSize);
 
         std::vector<std::thread> threads;
         threads.reserve(networkThreads-1);

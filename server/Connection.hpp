@@ -81,7 +81,7 @@ class Connection {
     std::unique_ptr<CommandImpl> mImpl;
 public:
     Connection(boost::asio::io_service& service, tell::db::ClientManager<Context>& clientManager,
-               const AIMSchema &aimSchema,
+               const AIMSchema &aimSchema, size_t processingThreads,
                unsigned eventBatchSize);
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }

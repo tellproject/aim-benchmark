@@ -49,9 +49,12 @@ public:
             mFiber.reset(nullptr);
         });
     }
-    void start(tell::db::ClientManager<Context>& clientManager) {
-        auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(), std::placeholders::_1, std::placeholders::_2);
-        mFiber.reset(new tell::db::TransactionFiber<Context>(clientManager.startTransaction(fun)));
+    void start(tell::db::ClientManager<Context>& clientManager,
+               size_t processingThread) {
+        auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(),
+                    std::placeholders::_1, std::placeholders::_2);
+        mFiber.reset(new tell::db::TransactionFiber<Context>(clientManager.startTransaction(
+                    fun, tell::store::TransactionType::READ_WRITE, processingThread)));
     }
 };
 
@@ -60,8 +63,9 @@ class CommandImpl {
     boost::asio::io_service& mService;
     tell::db::ClientManager<Context>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
-    std::vector<Event> mEventBatch;
     const AIMSchema &mAIMSchema;
+    std::vector<std::vector<Event>> mEventBatches;
+    size_t mProcessingThreads;
     unsigned mEventBatchSize;
     Transactions mTransactions;
 public:
@@ -69,15 +73,21 @@ public:
             boost::asio::io_service& service,
             tell::db::ClientManager<Context>& clientManager,
             const AIMSchema &aimSchema,
+            unsigned processingThreads,
             unsigned eventBatchSize)
         : mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
         , mAIMSchema(aimSchema)
+        , mProcessingThreads(processingThreads)
         , mEventBatchSize(eventBatchSize)
         , mTransactions(aimSchema)
     {
-        mEventBatch.reserve(mEventBatchSize);
+        std::vector<Event> eventBatch;
+        eventBatch.reserve(eventBatchSize);
+        mEventBatches.reserve(processingThreads);
+        for (size_t i = 0; i < processingThreads; ++i)
+            mEventBatches.push_back(eventBatch);
     }
 
     void run() {
@@ -160,13 +170,16 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        if (mEventBatch.size() >= mEventBatchSize) {
+        size_t processingThread =
+                (static_cast<Event>(args)).caller_id % mProcessingThreads;
+        auto &eventBatch = mEventBatches[processingThread];
+        if (eventBatch.size() >= mEventBatchSize) {
             auto processor = std::make_shared<EventProcessor>(mService, mTransactions);
-            processor->events.swap(mEventBatch);
-            mEventBatch.reserve(mEventBatchSize);
-            processor->start(mClientManager);
+            processor->events.swap(eventBatch);
+            eventBatch.reserve(mEventBatchSize);
+            processor->start(mClientManager, processingThread);
         }
-        mEventBatch.push_back(args);
+        eventBatch.push_back(args);
     }
 
     template<Command C, class Callback>
@@ -356,9 +369,11 @@ public:
 Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<Context>& clientManager,
                 const AIMSchema &aimSchema,
+                size_t processingThreads,
                 unsigned eventBatchSize)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema, eventBatchSize))
+    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema,
+                    processingThreads, eventBatchSize))
 {}
 
 Connection::~Connection() = default;

@@ -94,17 +94,15 @@ public:
     }
 
     tell::db::Field &update(tell::db::Field &field,
-                    const AIMSchemaEntry& se,
                     Timestamp old_ts, const Event& e) const
     {
-        return _update(field, se, old_ts, e);
+        return _update(field, *this, old_ts, e);
     }
 
     tell::db::Field &maintain(tell::db::Field &field,
-                    const AIMSchemaEntry& se,
                     Timestamp old_ts, const Event& e) const
     {
-        return _maintain(field, se, old_ts, e);
+        return _maintain(field, *this, old_ts, e);
     }
 
     bool filter(const Event& event) const

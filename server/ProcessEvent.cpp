@@ -58,7 +58,10 @@ void Transactions::processEvent(Transaction& tx,
             Timestamp ts =  oldTuple[context.timeStampId].value<Timestamp>();
             Tuple newTuple (oldTuple);
             for (auto &pair: context.tellIDToAIMSchemaEntry) {
-                pair.second.update(newTuple[pair.first], pair.second, ts, *eventIter);
+                if (pair.second.filter(*eventIter))
+                    pair.second.update(newTuple[pair.first], ts, *eventIter);
+                else
+                    pair.second.maintain(newTuple[pair.first], ts, *eventIter);
             }
             tx.update(wideTable, tell::db::key_t{eventIter->caller_id},
                       oldTuple, newTuple);
