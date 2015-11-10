@@ -45,7 +45,6 @@ class SEPClient {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
-    uint64_t mSubscriberNum;
     uint64_t mLowest;
     uint64_t mHighest;
     Random_t rnd;
@@ -55,7 +54,6 @@ public:
     SEPClient(boost::asio::io_service& service, uint64_t subscriberNum, uint64_t lowest, uint64_t highest, decltype(Clock::now()) endTime)
         : mSocket(service)
         , mCmds(mSocket)
-        , mSubscriberNum(subscriberNum)
         , mLowest(lowest)
         , mHighest(highest)
         , rnd(subscriberNum)

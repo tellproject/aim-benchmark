@@ -46,7 +46,6 @@ class RTAClient {
     Socket mSocket;
     client::CommandsImpl mCmds;
     std::vector<uint8_t> mWorkload;
-    uint64_t mSubscriberNum;
     Random_t rnd;
     uint8_t mCurrentQueryIdx;
     std::deque<LogEntry> mLog;
@@ -56,7 +55,6 @@ public:
         : mSocket(service)
         , mCmds(mSocket)
         , mWorkload(workload)
-        , mSubscriberNum(subscriberNum)
         , rnd(subscriberNum, workload.size())
         , mCurrentQueryIdx(rnd.randomQuery())
         , mEndTime(endTime)

@@ -110,7 +110,7 @@ AIMSchema::sizes() const
     for (auto& entry: _entries) {
         sizes.push_back(entry.size());
     }
-    return std::move(sizes);
+    return sizes;
 }
 
 /*

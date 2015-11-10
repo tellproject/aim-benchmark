@@ -40,7 +40,7 @@ public:
     /**
      * takes a transaction in the constructor such that schema can be obained at startup time
      */
-    Transactions(const AIMSchema aimSchema):
+    Transactions(const AIMSchema &aimSchema):
             mAimSchema(aimSchema)
     {}
 

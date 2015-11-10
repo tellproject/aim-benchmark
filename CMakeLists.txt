@@ -19,7 +19,7 @@ set(COMMON_SRC
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16 -ftemplate-depth=512")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16 -ftemplate-depth=512 -Werror")
 
 add_library(aim_common STATIC ${COMMON_SRC})
 # Workaround for link failure with GCC 5 (GCC Bug 65913)
