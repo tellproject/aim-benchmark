@@ -450,7 +450,10 @@ public:
     template<class Callback, class Result>
     typename std::enable_if<!std::is_void<Result>::value, void>::type
     readResponse(const Callback& callback, size_t bytes_read = 0) {
-        auto respSize = *reinterpret_cast<size_t*>(mCurrentRequest.get());
+        size_t respSize = std::numeric_limits<uint64_t>::max();
+        if (bytes_read >= 8) {
+            respSize =  *reinterpret_cast<size_t*>(mCurrentRequest.get());
+        }
         if (bytes_read >= 8 && respSize == bytes_read) {
             // response read
             Result res;

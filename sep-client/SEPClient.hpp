@@ -22,6 +22,7 @@
  */
 #pragma once
 #include <boost/asio.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <common/Protocol.hpp>
 #include <random>
 #include <chrono>
@@ -41,40 +42,73 @@ struct LogEntry {
     decltype(start) end;
 };
 
-class SEPClient {
+class PopulationClient {
     using Socket = boost::asio::ip::tcp::socket;
     Socket mSocket;
     client::CommandsImpl mCmds;
     uint64_t mLowest;
     uint64_t mHighest;
     Random_t rnd;
-    std::deque<LogEntry> mLog;
-    decltype(Clock::now()) mEndTime;
 public:
-    SEPClient(boost::asio::io_service& service, uint64_t subscriberNum, uint64_t lowest, uint64_t highest, decltype(Clock::now()) endTime)
+    PopulationClient(boost::asio::io_service& service,
+                     uint64_t subscriberNum,
+                     uint64_t lowest,
+                     uint64_t highest,
+                     decltype(Clock::now()) endTime)
         : mSocket(service)
+        //, mCmds(mSocket)
         , mCmds(mSocket)
         , mLowest(lowest)
         , mHighest(highest)
         , rnd(subscriberNum)
-        , mEndTime(endTime)
     {}
+    Socket& socket() {
+        return mSocket;
+    }
+    client::CommandsImpl& commands() {
+        return mCmds;
+    }
+    void populate();
+    void populate(uint64_t lowest, uint64_t highest);
+};
+
+class SEPClient {
+    using Socket = boost::asio::ip::udp::socket;
+    Socket mSocket;
+    std::unique_ptr<boost::asio::steady_timer> mTimer;
+    uint64_t mLowest;
+    uint64_t mHighest;
+    Random_t rnd;
+    decltype(Clock::now()) mEndTime;
+    size_t mNumEvents;
+public:
+    SEPClient(boost::asio::io_service& service,
+              uint64_t subscriberNum,
+              uint64_t lowest,
+              uint64_t highest,
+              decltype(Clock::now()) endTime)
+        : mSocket(service)
+        , mTimer(new boost::asio::steady_timer(service))
+        , mLowest(lowest)
+        , mHighest(highest)
+        , rnd(subscriberNum)
+        , mEndTime(endTime)
+        , mNumEvents(0)
+    {}
+    SEPClient(SEPClient&&);
     Socket& socket() {
         return mSocket;
     }
     const Socket& socket() const {
         return mSocket;
     }
-    client::CommandsImpl& commands() {
-        return mCmds;
+    //client::CommandsImpl& commands() {
+    //    return mCmds;
+    //}
+    void run(unsigned messageRate);
+    size_t count() const {
+        return mNumEvents;
     }
-    void run();
-    void populate();
-    const std::deque<LogEntry>& log() const { return mLog; }
-private:
-    void populate(uint64_t lowest, uint64_t highest);
-    template<Command C>
-    void execute(const typename Signature<C>::arguments& arg);
 };
 
 }

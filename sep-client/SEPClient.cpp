@@ -28,40 +28,11 @@ using err_code = boost::system::error_code;
 
 namespace aim {
 
-template <Command C>
-void SEPClient::execute(const typename Signature<C>::arguments &arg) {
-    auto now = Clock::now();
-    if (now > mEndTime) {
-        // Time's up
-        // benchmarking finished
-        return;
-    }
-    mCmds.execute<C>(
-      [this, now](const err_code &ec) {
-          if (ec) {
-              LOG_ERROR("Error: " + ec.message());
-              return;
-          }
-          auto end = Clock::now();
-          mLog.push_back(LogEntry{true, "", C, now, end});
-          run();
-      },
-      arg);
-}
-
-void SEPClient::run() {
-    LOG_DEBUG("Create Event");
-    Event e;
-    e.caller_id = rnd.randomWithin<int32_t>(mLowest, mHighest);
-    rnd.randomEvent(e);
-    execute<Command::PROCESS_EVENT>(e);
-}
-
-void SEPClient::populate() {
+void PopulationClient::populate() {
     populate(mLowest, mHighest);
 }
 
-void SEPClient::populate(uint64_t lowest, uint64_t highest) {
+void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
     mCmds.execute<Command::POPULATE_TABLE>(
             [this, lowest, highest](const err_code& ec, const std::tuple<bool, crossbow::string>& res){
                 if (ec) {
@@ -76,6 +47,63 @@ void SEPClient::populate(uint64_t lowest, uint64_t highest) {
                           + " to " + crossbow::to_string(highest)));
             },
             std::make_tuple(lowest, highest));
+}
+
+
+//template <Command C>
+//void SEPClient::execute(const typename Signature<C>::arguments &arg) {
+//    auto now = Clock::now();
+//    if (now > mEndTime) {
+//        // Time's up
+//        // benchmarking finished
+//        return;
+//    }
+//    mCmds.execute<C>(
+//      [this, now](const err_code &ec) {
+//          if (ec) {
+//              LOG_ERROR("Error: " + ec.message());
+//              return;
+//          }
+//          auto end = Clock::now();
+//          mLog.push_back(LogEntry{true, "", C, now, end});
+//          run();
+//      },
+//      arg);
+//}
+//
+
+SEPClient::SEPClient(SEPClient&&) = default;
+
+void SEPClient::run(unsigned messageRate) {
+    Event e;
+    e.caller_id = rnd.randomWithin<int32_t>(mLowest, mHighest);
+    rnd.randomEvent(e);
+    crossbow::sizer sz;
+    sz & sz.size;
+    sz & Command::PROCESS_EVENT;
+    sz & e;
+    auto buf = new uint8_t[sz.size];
+    crossbow::serializer ser(buf);
+    ser & sz.size;
+    ser & Command::PROCESS_EVENT;
+    ser & e;
+    ser.buffer.release();
+    mSocket.async_send(boost::asio::buffer(buf, sz.size), [this, buf](const boost::system::error_code& ec, size_t bt) {
+        if (ec) {
+            LOG_ERROR("ERROR while sending event: %1%: %2%", ec.value(), ec.message());
+        }
+        delete[] buf;
+    });
+    mTimer->expires_from_now(std::chrono::microseconds(1000000/messageRate));
+    mTimer->async_wait([this, messageRate](const boost::system::error_code& ec) {
+        if (ec) {
+            LOG_ERROR("FATAL: ABORT IN TIMER");
+            std::terminate();
+        }
+        run(messageRate);
+    });
+    //execute<Command::PROCESS_EVENT>(e);
+    ++mNumEvents;
 }
 
 } // aim

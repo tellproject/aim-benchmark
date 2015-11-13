@@ -58,36 +58,80 @@ public:
     }
 };
 
+void UdpServer::bind(const std::string& host, const std::string& port) {
+    using namespace boost::asio;
+    mSocket.open(ip::udp::v4());
+    ip::udp::resolver res(mSocket.get_io_service());
+    ip::udp::resolver::iterator iter;
+    if (host == "") {
+        iter = res.resolve(ip::udp::resolver::query(port));
+    } else {
+        iter = res.resolve(ip::udp::resolver::query(host, port));
+    }
+    decltype(iter) end;
+    for (; iter != end; ++iter) {
+        boost::system::error_code err;
+        auto endpoint = iter->endpoint();
+        mSocket.bind(endpoint, err);
+        if (err) {
+            LOG_WARN("Bind attempt failed " + err.message());
+            continue;
+        }
+        break;
+    }
+    if (!mSocket.is_open()) {
+        LOG_ERROR("Could not bind");
+        std::terminate();
+    }
+}
+
+void UdpServer::run() {
+    using err_code = boost::system::error_code;
+    mSocket.async_receive(boost::asio::buffer(mBuffer.get(), mBufferSize), [this](const err_code& ec, size_t bt){
+        if (ec) {
+            LOG_ERROR(ec.message());
+            run();
+            return;
+        }
+        size_t reqSize = *reinterpret_cast<size_t*>(mBuffer.get());
+        assert(reqSize == bt);
+        auto cmd = *reinterpret_cast<Command*>(mBuffer.get() + sizeof(size_t));
+        assert (cmd == Command::PROCESS_EVENT);
+        crossbow::deserializer des(reinterpret_cast<uint8_t*>(mBuffer.get() + sizeof(size_t) + sizeof(Command)));
+        Event ev;
+        des & ev;
+        size_t processingThread =
+                ev.caller_id % mEventBatches.size();
+        auto &eventBatch = mEventBatches[processingThread];
+        if (eventBatch.size() >= mEventBatchSize) {
+            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions);
+            processor->events.swap(eventBatch);
+            eventBatch.reserve(mEventBatchSize);
+            processor->start(mClientManager, processingThread);
+        }
+        eventBatch.push_back(ev);
+        run();
+    });
+}
+
 class CommandImpl {
     server::Server<CommandImpl> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<Context>& mClientManager;
     std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
     const AIMSchema &mAIMSchema;
-    std::vector<std::vector<Event>> mEventBatches;
-    size_t mProcessingThreads;
-    unsigned mEventBatchSize;
     Transactions mTransactions;
 public:
     CommandImpl(boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
             tell::db::ClientManager<Context>& clientManager,
-            const AIMSchema &aimSchema,
-            unsigned processingThreads,
-            unsigned eventBatchSize)
+            const AIMSchema &aimSchema)
         : mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
         , mAIMSchema(aimSchema)
-        , mProcessingThreads(processingThreads)
-        , mEventBatchSize(eventBatchSize)
         , mTransactions(aimSchema)
     {
-        std::vector<Event> eventBatch;
-        eventBatch.reserve(eventBatchSize);
-        mEventBatches.reserve(processingThreads);
-        for (size_t i = 0; i < processingThreads; ++i)
-            mEventBatches.push_back(eventBatch);
     }
 
     void run() {
@@ -170,16 +214,8 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        size_t processingThread =
-                (static_cast<Event>(args)).caller_id % mProcessingThreads;
-        auto &eventBatch = mEventBatches[processingThread];
-        if (eventBatch.size() >= mEventBatchSize) {
-            auto processor = std::make_shared<EventProcessor>(mService, mTransactions);
-            processor->events.swap(eventBatch);
-            eventBatch.reserve(mEventBatchSize);
-            processor->start(mClientManager, processingThread);
-        }
-        eventBatch.push_back(args);
+        LOG_ERROR("PROCESS_EVENT must be called over udp");
+        std::terminate();
     }
 
     template<Command C, class Callback>
@@ -372,8 +408,7 @@ Connection::Connection(boost::asio::io_service& service,
                 size_t processingThreads,
                 unsigned eventBatchSize)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema,
-                    processingThreads, eventBatchSize))
+    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema))
 {}
 
 Connection::~Connection() = default;

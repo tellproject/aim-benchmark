@@ -48,17 +48,70 @@ std::vector<std::string> split(const std::string str, const char delim) {
     return result;
 }
 
+template<class Resolver, class Client>
+void connectClients(std::vector<Client>& clients,
+        const std::vector<std::string>& hosts,
+        const std::string& port,
+        boost::asio::io_service& service,
+        size_t numClients,
+        uint64_t numSubscribers,
+        bool isUdp = false)
+{
+    using query = typename Resolver::query;
+    auto sumClients = numClients * hosts.size();
+    auto subscribersPerClient = numSubscribers / sumClients;
+    for (decltype(sumClients) i = 0; i < sumClients; ++i) {
+        clients.emplace_back(service, numSubscribers, int16_t(subscribersPerClient * i + 1), int16_t(subscribersPerClient * (i + 1)), aim::Clock::now());
+    }
+    for (size_t i = 0; i < hosts.size(); ++i) {
+        auto h = hosts[i];
+        auto addr = split(h, ':');
+        assert(addr.size() <= 3);
+        auto p = addr.size() >= 2 ? addr[1] : port;
+        if (isUdp) {
+            p = addr.size() == 3 ? addr[2] : port;
+        }
+        Resolver resolver(service);
+        typename Resolver::iterator iter;
+        if (hosts.empty()) {
+            iter = resolver.resolve(query(port));
+        } else {
+            iter = resolver.resolve(query(h, port));
+        }
+        for (unsigned j = 0; j < numClients; ++j) {
+            LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
+            boost::asio::connect(clients[i*numClients + j].socket(), iter);
+        }
+    }
+}
+
+void runPopulation(std::vector<aim::PopulationClient>& clients,
+                   const std::vector<std::string>& hosts,
+                   boost::asio::io_service& service,
+                   const std::string& port,
+                   size_t numClients,
+                   uint64_t numSubscribers)
+{
+    clients.reserve(numClients * hosts.size());
+    connectClients<boost::asio::ip::tcp::resolver>(clients, hosts, port, service, numClients, numSubscribers);
+    for (auto& c : clients) {
+        c.populate();
+    }
+}
+
 int main(int argc, const char** argv) {
     bool help = false;
     bool populate = false;
     uint64_t numSubscribers = 10 * 1024 * 1024;
     std::string hostList;
     std::string port("8713");
+    std::string udpPort("8714");
     std::string logLevel("DEBUG");
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
     unsigned processingThreads = 1u;
+    unsigned messageRate = 10000;
     auto opts = create_options("SEP_client",
             value<'h'>("help", &help, tag::description{"print help"})
             , value<'H'>("hosts", &hostList, tag::description{"Comma-separated list of hosts"})
@@ -69,6 +122,7 @@ int main(int argc, const char** argv) {
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
             , value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
+            , value<'r'>("message-rate", &messageRate, tag::description{"Message rate in events/second"})
             );
     try {
         parse(opts, argc, argv);
@@ -86,59 +140,20 @@ int main(int argc, const char** argv) {
         return 1;
     }
 
+
     auto startTime = aim::Clock::now();
-    auto endTime = startTime + std::chrono::seconds(time);
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
     try {
         auto hosts = split(hostList, ',');
         io_service service;
-        auto sumClients = hosts.size() * numClients;
         std::vector<aim::SEPClient> clients;
-        clients.reserve(sumClients);
-        auto subscribersPerClient = numSubscribers / sumClients;
-        for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-            clients.emplace_back(service, numSubscribers, int16_t(subscribersPerClient * i + 1), int16_t(subscribersPerClient * (i + 1)), endTime);
-        }
-
-        for (size_t i = 0; i < hosts.size(); ++i) {
-            auto h = hosts[i];
-            auto addr = split(h, ':');
-            assert(addr.size() <= 2);
-            auto p = addr.size() == 2 ? addr[1] : port;
-            ip::tcp::resolver resolver(service);
-            ip::tcp::resolver::iterator iter;
-            if (hostList == "") {
-                iter = resolver.resolve(ip::tcp::resolver::query(port));
-            } else {
-                iter = resolver.resolve(ip::tcp::resolver::query(hostList, port));
-            }
-            for (unsigned j = 0; j < numClients; ++j) {
-                LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
-                boost::asio::connect(clients[i*numClients + j].socket(), iter);
-            }
-        }
-
+        std::vector<aim::PopulationClient> populationClients;
         if (populate) {
-            auto& cmds = clients[0].commands();
-            cmds.execute<aim::Command::CREATE_SCHEMA>(
-                    [&clients](const err_code& ec,
-                        const std::tuple<bool, crossbow::string>& res){
-                if (ec) {
-                    LOG_ERROR(ec.message());
-                    return;
-                }
-                if (!std::get<0>(res)) {
-                    LOG_ERROR(std::get<1>(res));
-                    return;
-                }
-                for (auto& client : clients) {
-                    client.populate();
-                }
-            });
+            runPopulation(populationClients, hosts, service, port, numClients, numSubscribers);
         } else {
-            for (decltype(clients.size()) i = 0; i < clients.size(); ++i) {
-                auto& client = clients[i];
-                client.run();
+            connectClients<boost::asio::ip::udp::resolver>(clients, hosts, udpPort, service, numClients, numSubscribers, true);
+            for (auto& client : clients) {
+                client.run(messageRate);
             }
         }
 
@@ -150,36 +165,13 @@ int main(int argc, const char** argv) {
         for (auto &thread: threads)
             thread.join();
 
-        LOG_INFO("Done, writing results");
-        std::ofstream out(outFile.c_str());
-        out << "start,end,transaction,success,error\n";
-        for (const auto& client : clients) {
-            const auto& queue = client.log();
-            for (const auto& e : queue) {
-                crossbow::string tName;
-                switch (e.transaction) {
-                case aim::Command::CREATE_SCHEMA:
-                    tName = "Schema Create";
-                    break;
-                case aim::Command::POPULATE_TABLE:
-                    tName = "Populate";
-                    break;
-                case aim::Command::PROCESS_EVENT:
-                    tName = "Process Event";
-                    break;
-                default:
-                    tName = "Unknown Transaction which should not happen in sep-client";
-                    break;
-                }
-                out << std::chrono::duration_cast<std::chrono::seconds>(e.start - startTime).count()
-                    << std::chrono::duration_cast<std::chrono::seconds>(e.end - startTime).count()
-                    << tName
-                    << (e.success ? "true" : "false")
-                    << e.error
-                    << std::endl;
-            }
+        auto runTime = std::chrono::duration_cast<std::chrono::seconds>(aim::Clock::now() - startTime).count();
+        size_t numEvents = 0;
+        for (auto& c : clients) {
+            numEvents += c.count();
         }
-        std::cout << '\a';
+
+        LOG_INFO("Done, did send %1% events in %2% seconds", numEvents, runTime);
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }

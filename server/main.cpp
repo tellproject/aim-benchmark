@@ -63,6 +63,7 @@ int main(int argc, const char** argv) {
     bool help = false;
     std::string host;
     std::string port("8713");
+    std::string udpPort("8714");
     std::string logLevel("DEBUG");
     std::string schemaFile("");
     crossbow::string commitManager;
@@ -75,6 +76,7 @@ int main(int argc, const char** argv) {
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
             value<'p'>("port", &port, tag::description{"Port to bind to"}),
+            value<'u'>("udp-port", &udpPort, tag::description{"Udp-port to receive events"}),
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
             value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
@@ -150,6 +152,9 @@ int main(int argc, const char** argv) {
         accept(service, a, clientManager, aimSchema, config.numNetworkThreads,
                eventBatchSize);
 
+        aim::UdpServer udpServer(service, clientManager, processingThreads, eventBatchSize, aimSchema);
+        udpServer.bind(host, udpPort);
+        udpServer.run();
         std::vector<std::thread> threads;
         threads.reserve(networkThreads-1);
         for (unsigned i = 0; i < networkThreads-1; ++i)

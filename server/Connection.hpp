@@ -31,6 +31,7 @@
 
 #include "server/sep/aim_schema.h"
 #include "server/rta/dimension_schema.h"
+#include "Transactions.hpp"
 
 namespace aim {
 
@@ -86,6 +87,36 @@ public:
     ~Connection();
     decltype(mSocket)& socket() { return mSocket; }
     void run();
+};
+
+class UdpServer {
+    boost::asio::ip::udp::socket mSocket;
+    tell::db::ClientManager<Context>& mClientManager;
+    size_t mBufferSize;
+    std::unique_ptr<char[]> mBuffer;
+    Transactions mTransactions;
+    unsigned mEventBatchSize;
+    std::vector<std::vector<Event>> mEventBatches;
+public:
+    UdpServer(boost::asio::io_service& service,
+              tell::db::ClientManager<Context>& clientManager,
+              size_t processingThreads,
+              unsigned eventBatchSize,
+              const AIMSchema &aimSchema)
+        : mSocket(service)
+        , mClientManager(clientManager)
+        , mBufferSize(1024)
+        , mBuffer(new char[mBufferSize])
+        , mTransactions(aimSchema)
+        , mEventBatchSize(eventBatchSize)
+        , mEventBatches(processingThreads, std::vector<Event>())
+    {
+        for (auto& v : mEventBatches) {
+            v.reserve(mEventBatchSize);
+        }
+    }
+    void run();
+    void bind(const std::string& addr, const std::string& port);
 };
 
 } // namespace aim

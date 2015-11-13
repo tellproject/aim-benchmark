@@ -87,6 +87,8 @@ set(RTA_CLIENT_SRC
     rta-client/RTAClient.cpp
 )
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BINARY_DIR}/meta_db.db COPYONLY)
+
 add_executable(aim_server ${SERVER_SRC})
 target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(aim_server aim_common dl)
