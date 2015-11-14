@@ -39,7 +39,7 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
                     LOG_ERROR(ec.message());
                     return;
                 }
-                if (std::get<0>(res)) {
+                if (!std::get<0>(res)) {
                     LOG_ERROR(std::get<1>(res));
                     return;
                 }
@@ -75,6 +75,7 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
 SEPClient::SEPClient(SEPClient&&) = default;
 
 void SEPClient::run(unsigned messageRate) {
+    if (Clock::now() < mEndTime) return;
     Event e;
     e.caller_id = rnd.randomWithin<int32_t>(mLowest, mHighest);
     rnd.randomEvent(e);

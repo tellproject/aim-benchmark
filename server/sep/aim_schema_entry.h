@@ -144,6 +144,7 @@ private:
 struct CostExtractor
 {
     typedef double type;
+    using sum_type = double;
     static type extract(const Event &e) { return e.cost; }
     static type def() { return 0.0; }
 };
@@ -151,6 +152,7 @@ struct CostExtractor
 struct CallExtractor
 {
     typedef int32_t type;
+    using sum_type = int32_t;
     static type extract(const Event &e) { return 1; }
     static type def() { return 0; }
 };
@@ -158,6 +160,7 @@ struct CallExtractor
 struct DurExtractor
 {
     typedef int32_t type;
+    using sum_type = int64_t;
     static type extract(const Event &e) { return e.duration; }
     static type def() { return 0; }
 };
@@ -178,7 +181,8 @@ template <typename Extractor>
 tell::db::Field
 initSumDef()
 {
-    return tell::db::Field(Extractor::def());
+    using sum_aggr_type = typename Extractor::sum_type;
+    return tell::db::Field(sum_aggr_type(Extractor::def()));
 }
 
 template <typename Extractor>
@@ -233,8 +237,9 @@ tell::db::Field&
 updateSum(tell::db::Field &field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
+    using sum_type = typename Extractor::sum_type;
     Timestamp win_start;
-    auto t_val = Extractor::extract(e);     //take the new value from the event
+    auto t_val = sum_type(Extractor::extract(e));     //take the new value from the event
 
     win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
     win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts

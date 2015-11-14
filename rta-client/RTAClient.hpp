@@ -56,7 +56,7 @@ public:
         , mCmds(mSocket)
         , mWorkload(workload)
         , rnd(subscriberNum, workload.size())
-        , mCurrentQueryIdx(rnd.randomQuery())
+        , mCurrentQueryIdx(rnd.randomWithin<int>(0, workload.size() - 1))
         , mEndTime(endTime)
     {}
     Socket& socket() {

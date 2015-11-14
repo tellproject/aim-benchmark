@@ -49,7 +49,7 @@ void RTAClient::execute(const Args&... args) {
 
 void RTAClient::run() {
     uint8_t currentQuery = mWorkload[mCurrentQueryIdx];
-    mCurrentQueryIdx = (mCurrentQueryIdx + 1) / mWorkload.size();
+    mCurrentQueryIdx = (mCurrentQueryIdx + 1) % mWorkload.size();
     switch (currentQuery) {
     case 1:
     {

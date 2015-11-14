@@ -97,6 +97,7 @@ class UdpServer {
     Transactions mTransactions;
     unsigned mEventBatchSize;
     std::vector<std::vector<Event>> mEventBatches;
+    std::vector<std::atomic<bool>*> mProcessingThreadFree;
 public:
     UdpServer(boost::asio::io_service& service,
               tell::db::ClientManager<Context>& clientManager,
@@ -110,9 +111,18 @@ public:
         , mTransactions(aimSchema)
         , mEventBatchSize(eventBatchSize)
         , mEventBatches(processingThreads, std::vector<Event>())
+        , mProcessingThreadFree(processingThreads, nullptr)
     {
+        for (auto& a : mProcessingThreadFree) {
+            a = new std::atomic<bool>(true);
+        }
         for (auto& v : mEventBatches) {
             v.reserve(mEventBatchSize);
+        }
+    }
+    ~UdpServer() {
+        for (auto& a : mProcessingThreadFree) {
+            delete a;
         }
     }
     void run();

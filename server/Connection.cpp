@@ -36,25 +36,31 @@ struct EventProcessor : public std::enable_shared_from_this<EventProcessor> {
 private:
     boost::asio::io_service& mService;
     Transactions& mTransactions;
-    std::unique_ptr<tell::db::TransactionFiber<Context>> mFiber;
+    tell::db::TransactionFiber<Context>* mFiber;
+    std::atomic<bool>& mIsFree;
 public:
     std::vector<Event> events;
-    EventProcessor(boost::asio::io_service& service, Transactions& transactions)
-        : mService(service), mTransactions(transactions)
+    EventProcessor(boost::asio::io_service& service, Transactions& transactions, std::atomic<bool>& isFree)
+        : mService(service)
+        , mTransactions(transactions)
+        , mIsFree(isFree)
     {}
     void runTransaction(tell::db::Transaction& tx, Context& context) {
         mTransactions.processEvent(tx, context, events);
-        mService.post([this]() {
-            mFiber->wait();
-            mFiber.reset(nullptr);
+        auto fiber = mFiber;
+        auto isFree = &mIsFree;
+        mService.post([fiber, isFree]() {
+            isFree->store(true);
+            fiber->wait();
+            delete fiber;
         });
     }
     void start(tell::db::ClientManager<Context>& clientManager,
                size_t processingThread) {
         auto fun = std::bind(&EventProcessor::runTransaction, shared_from_this(),
                     std::placeholders::_1, std::placeholders::_2);
-        mFiber.reset(new tell::db::TransactionFiber<Context>(clientManager.startTransaction(
-                    fun, tell::store::TransactionType::READ_WRITE, processingThread)));
+        mFiber = new tell::db::TransactionFiber<Context>(clientManager.startTransaction(
+                    fun, tell::store::TransactionType::READ_WRITE, processingThread));
     }
 };
 
@@ -103,8 +109,10 @@ void UdpServer::run() {
         size_t processingThread =
                 ev.caller_id % mEventBatches.size();
         auto &eventBatch = mEventBatches[processingThread];
-        if (eventBatch.size() >= mEventBatchSize) {
-            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions);
+        auto isFree = mProcessingThreadFree[processingThread];
+        if (eventBatch.size() >= mEventBatchSize && isFree->load()) {
+            isFree->store(false);
+            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions, *isFree);
             processor->events.swap(eventBatch);
             eventBatch.reserve(mEventBatchSize);
             processor->start(mClientManager, processingThread);

@@ -61,7 +61,7 @@ void connectClients(std::vector<Client>& clients,
     auto sumClients = numClients * hosts.size();
     auto subscribersPerClient = numSubscribers / sumClients;
     for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-        clients.emplace_back(service, numSubscribers, int16_t(subscribersPerClient * i + 1), int16_t(subscribersPerClient * (i + 1)), aim::Clock::now());
+        clients.emplace_back(service, numSubscribers, subscribersPerClient * i + 1, subscribersPerClient * (i + 1), aim::Clock::now());
     }
     for (size_t i = 0; i < hosts.size(); ++i) {
         auto h = hosts[i];
@@ -92,11 +92,22 @@ void runPopulation(std::vector<aim::PopulationClient>& clients,
                    size_t numClients,
                    uint64_t numSubscribers)
 {
+    using errcode = const boost::system::error_code&;
     clients.reserve(numClients * hosts.size());
     connectClients<boost::asio::ip::tcp::resolver>(clients, hosts, port, service, numClients, numSubscribers);
-    for (auto& c : clients) {
-        c.populate();
-    }
+    clients[0].commands().execute<aim::Command::CREATE_SCHEMA>([&clients](errcode ec, const std::tuple<bool, crossbow::string>& res){
+        if (ec) {
+            LOG_ERROR("ERROR %1%: %2%", ec.value(), ec.message());
+            return;
+        }
+        if (!std::get<0>(res)) {
+            LOG_ERROR("ERROR: %1%", std::get<1>(res));
+            return;
+        }
+        for (auto& c : clients) {
+            c.populate();
+        }
+    });
 }
 
 int main(int argc, const char** argv) {

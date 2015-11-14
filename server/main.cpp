@@ -47,7 +47,7 @@ void accept(boost::asio::io_service &service,
     auto conn = new aim::Connection(service, clientManager, aimSchema,
                 processingThreads, eventBatchSize);
     a.async_accept(conn->socket(), [conn, &service, &a, &clientManager,
-                processingThreads, aimSchema, eventBatchSize](
+                processingThreads, &aimSchema, eventBatchSize](
                    const boost::system::error_code &err) {
         if (err) {
             delete conn;

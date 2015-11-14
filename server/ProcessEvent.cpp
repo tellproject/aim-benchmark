@@ -69,6 +69,8 @@ void Transactions::processEvent(Transaction& tx,
 
         tx.commit();
     } catch (std::exception& ex) {
+        LOG_ERROR("FATAL: Connection aborted for event, this must not happen, ex = %1%", ex.what());
+        std::terminate();
     }
 }
 

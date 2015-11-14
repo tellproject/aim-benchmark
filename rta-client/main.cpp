@@ -150,7 +150,7 @@ int main(int argc, const char** argv) {
                     tName = "Q1";
                     break;
                 case aim::Command::Q2:
-                    tName = "Q3";
+                    tName = "Q2";
                     break;
                 case aim::Command::Q3:
                     tName = "Q3";
@@ -171,10 +171,14 @@ int main(int argc, const char** argv) {
                     tName = "Unknown Transaction which should not happen in rta-client";
                     break;
                 }
-                out << std::chrono::duration_cast<std::chrono::seconds>(e.start - startTime).count()
-                    << std::chrono::duration_cast<std::chrono::seconds>(e.end - startTime).count()
+                out << std::chrono::duration_cast<std::chrono::milliseconds>(e.start - startTime).count()
+                    << ','
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(e.end - startTime).count()
+                    << ','
                     << tName
+                    << ','
                     << (e.success ? "true" : "false")
+                    << ','
                     << e.error
                     << std::endl;
             }
