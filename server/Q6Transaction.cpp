@@ -47,17 +47,21 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
         {   // find the minima / maxima
 
-            uint32_t selectionLength = 24;
+            uint32_t selectionLength = 32;
             std::unique_ptr<char[]> selection(new char[selectionLength]);
 
             crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-            selectionWriter.write<uint64_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x0u);
+            selectionWriter.write<uint32_t>(0x0u);
+
             selectionWriter.write<uint16_t>(context.regionCountry);
             selectionWriter.write<uint16_t>(0x1u);
-            selectionWriter.align(sizeof(uint64_t));
+            selectionWriter.advance(4);
             selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
             selectionWriter.write<uint8_t>(0x0u);
-            selectionWriter.align(sizeof(uint32_t));
+            selectionWriter.advance(2);
             selectionWriter.write<int32_t>(in.country_id);
 
             // sort aggregation attributes

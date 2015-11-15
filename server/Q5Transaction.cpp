@@ -47,18 +47,21 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         // 5 different unique values
         // aggregate them all in separate scans
 
-        uint32_t selectionLength = 24;
+        uint32_t selectionLength = 32;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-        selectionWriter.write<uint64_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x0u);
+        selectionWriter.write<uint32_t>(0x0u);
 
         selectionWriter.write<uint16_t>(context.regionRegion);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.advance(4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.advance(2);
         selectionWriter.write<int32_t>(0);                // we are going to vary this
 
         // sort aggregation attributes

@@ -47,35 +47,39 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
         // 5 different unique values
         // aggregate them all in separate scans
 
-        uint32_t selectionLength = 56;
+        uint32_t selectionLength = 72;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-        selectionWriter.write<uint64_t>(0x3u);
+        selectionWriter.write<uint32_t>(0x3u);
+        selectionWriter.write<uint32_t>(0x3u);
+        selectionWriter.write<uint32_t>(0x0u);
+        selectionWriter.write<uint32_t>(0x0u);
 
         selectionWriter.write<uint16_t>(context.regionCity);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.advance(4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.advance(2);
+        const auto varyPtr = reinterpret_cast<int32_t*>(selectionWriter.data());
         selectionWriter.write<int32_t>(0);                // we are going to vary this
 
         selectionWriter.write<uint16_t>(context.callsSumLocalWeek);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.advance(4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
-        selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.write<uint8_t>(0x1u);
+        selectionWriter.advance(2);
         selectionWriter.write<int32_t>(in.alpha);
 
         selectionWriter.write<uint16_t>(context.durSumLocalWeek);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.advance(4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
-        selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(sizeof(uint32_t));
-        selectionWriter.write<int32_t>(in.beta);
+        selectionWriter.write<uint8_t>(0x2u);
+        selectionWriter.advance(6);
+        selectionWriter.write<int64_t>(in.beta);
 
 
         // sort aggregation attributes
@@ -111,7 +115,7 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
         scanIterators.reserve(numberOfCities);
         for (int16_t i = 0; i < numberOfCities; ++i)
         {
-            *(reinterpret_cast<int32_t*>(&selection[20])) = i;
+            *varyPtr = i;
             scanIterators.push_back(clientHandle.scan(resultTable, snapshot,
                     *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
                     selection.get(), aggregationLength, aggregation.get()));

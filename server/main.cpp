@@ -71,7 +71,7 @@ int main(int argc, const char** argv) {
     unsigned eventBatchSize = 100u;
     unsigned networkThreads = 1u;
     unsigned processingThreads = 2u;
-    unsigned scanBlockSize = 4096u;
+    unsigned scanBlockSize = 0x6400000;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
             value<'H'>("host", &host, tag::description{"Host to bind to"}),
@@ -115,7 +115,7 @@ int main(int argc, const char** argv) {
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<aim::Context> clientManager(config);
     clientManager.allocateScanMemory(
-            config.tellStore.size() * processingThreads * 2, scanBlockSize);
+            config.tellStore.size() * processingThreads * 8, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);

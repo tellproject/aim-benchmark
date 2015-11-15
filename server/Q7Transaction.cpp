@@ -47,18 +47,21 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
         // 5 different unique values
         // aggregate them all in separate scans
 
-        uint32_t selectionLength = 24;
+        uint32_t selectionLength = 32;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-        selectionWriter.write<uint64_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x0u);
+        selectionWriter.write<uint32_t>(0x0u);
 
         selectionWriter.write<uint16_t>(context.valueTypeId);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.align(sizeof(uint64_t));
+        selectionWriter.advance(4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(sizeof(uint32_t));
+        selectionWriter.align(2);
         selectionWriter.write<int32_t>(in.subscriber_value_type);
 
         // sort aggregation attributes
@@ -68,24 +71,24 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
                     context.durSumAllDay : context.durSumAllWeek;
         id_t callsSumAllIdx = in.window_length == 0 ?
                     context.callsSumAllDay : context.callsSumAllWeek;
-        std::map<id_t, std::tuple<FieldType, crossbow::string>> aggregationAttributes;
-        aggregationAttributes[context.subscriberId] = std::make_tuple(
+        std::map<id_t, std::tuple<FieldType, crossbow::string>> projectionAttributes;
+        projectionAttributes[context.subscriberId] = std::make_tuple(
                 FieldType::BIGINT, "subscriber_id");
-        aggregationAttributes[costSumAllIdx] = std::make_tuple(
+        projectionAttributes[costSumAllIdx] = std::make_tuple(
                 FieldType::DOUBLE, "cost_sum_all");
-        aggregationAttributes[durSumAllIdx] = std::make_tuple(
+        projectionAttributes[durSumAllIdx] = std::make_tuple(
                 FieldType::BIGINT, "dur_sum_all");
-        aggregationAttributes[callsSumAllIdx] = std::make_tuple(
+        projectionAttributes[callsSumAllIdx] = std::make_tuple(
                 FieldType::INT, "calls_sum_all");
 
         Schema resultSchema(schema.type());
 
-        uint32_t aggregationLength = 2 * aggregationAttributes.size();
-        std::unique_ptr<char[]> aggregation(new char[aggregationLength]);
+        uint32_t projectionLength = sizeof(uint16_t) * projectionAttributes.size();
+        std::unique_ptr<char[]> projection(new char[projectionLength]);
 
-        crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
-        for (auto &attribute : aggregationAttributes) {
-            aggregationWriter.write<uint16_t>(attribute.first);
+        crossbow::buffer_writer projectionWriter(projection.get(), projectionLength);
+        for (auto &attribute : projectionAttributes) {
+            projectionWriter.write<uint16_t>(attribute.first);
             resultSchema.addField(std::get<0>(attribute.second),
                     std::get<1>(attribute.second), true);
         }
@@ -95,8 +98,8 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();
         auto scanIterator = clientHandle.scan(resultTable, snapshot,
-                    *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
-                    selection.get(), aggregationLength, aggregation.get());
+                    *context.scanMemoryMananger, ScanQueryType::PROJECTION, selectionLength,
+                    selection.get(), projectionLength, projection.get());
 
         result.flat_rate = std::numeric_limits<double>().max();
         result.subscriber_id = 1;
