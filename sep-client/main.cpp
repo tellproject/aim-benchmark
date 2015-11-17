@@ -74,9 +74,9 @@ void connectClients(std::vector<Client>& clients,
         Resolver resolver(service);
         typename Resolver::iterator iter;
         if (hosts.empty()) {
-            iter = resolver.resolve(query(port));
+            iter = resolver.resolve(query(p));
         } else {
-            iter = resolver.resolve(query(h, port));
+            iter = resolver.resolve(query(addr[0], p));
         }
         for (unsigned j = 0; j < numClients; ++j) {
             LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
@@ -121,7 +121,7 @@ int main(int argc, const char** argv) {
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
-    unsigned processingThreads = 1u;
+    unsigned networkThreads = 1u;
     unsigned messageRate = 10000;
     auto opts = create_options("SEP_client",
             value<'h'>("help", &help, tag::description{"print help"})
@@ -132,7 +132,7 @@ int main(int argc, const char** argv) {
             , value<'n'>("num-subscribers", &numSubscribers, tag::description{"Number of subscribers (data size)"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
-            , value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
+            , value<'N'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"})
             , value<'r'>("message-rate", &messageRate, tag::description{"Message rate in events/second"})
             );
     try {
@@ -169,8 +169,8 @@ int main(int argc, const char** argv) {
         }
 
         std::vector<std::thread> threads;
-        threads.reserve(processingThreads-1);
-        for (unsigned i = 0; i < processingThreads-1; ++i)
+        threads.reserve(networkThreads-1);
+        for (unsigned i = 0; i < networkThreads-1; ++i)
             threads.emplace_back([&service]{service.run();});
         service.run();
         for (auto &thread: threads)

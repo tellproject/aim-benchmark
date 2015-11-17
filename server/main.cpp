@@ -71,6 +71,7 @@ int main(int argc, const char** argv) {
     unsigned eventBatchSize = 100u;
     unsigned networkThreads = 1u;
     unsigned processingThreads = 2u;
+    unsigned scanBlockNumber = 1;
     unsigned scanBlockSize = 0x6400000;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
@@ -84,6 +85,7 @@ int main(int argc, const char** argv) {
             value<'b'>("batch-size", &eventBatchSize, tag::description{"size of event batches"}),
             value<'n'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"}),
             value<'t'>("processing-threads", &processingThreads, tag::description{"number of (Infiniband) processing threads"}),
+            value<'M'>("block-number", &scanBlockNumber, tag::description{"number of scan memory blocks"}),
             value<'m'>("block-size", &scanBlockSize, tag::description{"size of scan memory blocks"})
             );
     try {
@@ -115,7 +117,7 @@ int main(int argc, const char** argv) {
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<aim::Context> clientManager(config);
     clientManager.allocateScanMemory(
-            config.tellStore.size() * processingThreads * 8, scanBlockSize);
+            config.tellStore.size() * processingThreads * scanBlockNumber, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
