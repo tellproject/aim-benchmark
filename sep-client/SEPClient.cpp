@@ -80,7 +80,7 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
 SEPClient::SEPClient(SEPClient&&) = default;
 
 void SEPClient::run(unsigned messageRate) {
-    if (Clock::now() < mEndTime) return;
+    if (Clock::now() > mEndTime) return;
     Event e;
     e.caller_id = rnd.randomWithin<int32_t>(mLowest, mHighest);
     rnd.randomEvent(e);

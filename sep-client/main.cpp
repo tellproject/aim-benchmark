@@ -55,6 +55,7 @@ void connectClients(std::vector<Client>& clients,
         boost::asio::io_service& service,
         size_t numClients,
         uint64_t numSubscribers,
+        decltype(aim::Clock::now()) endTime,
         bool isUdp = false)
 {
     using query = typename Resolver::query;
@@ -66,7 +67,7 @@ void connectClients(std::vector<Client>& clients,
             lastSub = numSubscribers;
         }
         clients.emplace_back(service, numSubscribers, subscribersPerClient * i + 1,
-                lastSub, aim::Clock::now());
+                lastSub, endTime);
     }
     for (size_t i = 0; i < hosts.size(); ++i) {
         auto h = hosts[i];
@@ -99,7 +100,7 @@ void runPopulation(std::vector<aim::PopulationClient>& clients,
 {
     using errcode = const boost::system::error_code&;
     clients.reserve(numClients * hosts.size());
-    connectClients<boost::asio::ip::tcp::resolver>(clients, hosts, port, service, numClients, numSubscribers);
+    connectClients<boost::asio::ip::tcp::resolver>(clients, hosts, port, service, numClients, numSubscribers, aim::Clock::now());
     clients[0].commands().execute<aim::Command::CREATE_SCHEMA>([&clients](errcode ec, const std::tuple<bool, crossbow::string>& res){
         if (ec) {
             LOG_ERROR("ERROR %1%: %2%", ec.value(), ec.message());
@@ -158,6 +159,7 @@ int main(int argc, const char** argv) {
 
 
     auto startTime = aim::Clock::now();
+    auto endTime = startTime + std::chrono::seconds(time);
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
     try {
         auto hosts = split(hostList, ',');
@@ -167,7 +169,7 @@ int main(int argc, const char** argv) {
         if (populate) {
             runPopulation(populationClients, hosts, service, port, numClients, numSubscribers);
         } else {
-            connectClients<boost::asio::ip::udp::resolver>(clients, hosts, udpPort, service, numClients, numSubscribers, true);
+            connectClients<boost::asio::ip::udp::resolver>(clients, hosts, udpPort, service, numClients, numSubscribers, endTime, true);
             for (auto& client : clients) {
                 client.run(messageRate);
             }
