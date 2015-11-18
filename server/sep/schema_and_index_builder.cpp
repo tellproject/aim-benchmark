@@ -34,8 +34,10 @@ SchemaAndIndexBuilder::SchemaAndIndexBuilder(const char *db)
 
 SchemaAndIndexBuilder::~SchemaAndIndexBuilder()
 {
+#ifndef NDEBUG
     int rc = sqlite3_close_v2(_conn);
     assert(rc == SQLITE_OK);
+#endif
 }
 
 AIMSchema SchemaAndIndexBuilder::buildAIMSchema()

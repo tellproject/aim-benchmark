@@ -61,7 +61,12 @@ void connectClients(std::vector<Client>& clients,
     auto sumClients = numClients * hosts.size();
     auto subscribersPerClient = numSubscribers / sumClients;
     for (decltype(sumClients) i = 0; i < sumClients; ++i) {
-        clients.emplace_back(service, numSubscribers, subscribersPerClient * i + 1, subscribersPerClient * (i + 1), aim::Clock::now());
+        auto lastSub = subscribersPerClient * (i + 1);
+        if (i == sumClients - 1) {
+            lastSub = numSubscribers;
+        }
+        clients.emplace_back(service, numSubscribers, subscribersPerClient * i + 1,
+                lastSub, aim::Clock::now());
     }
     for (size_t i = 0; i < hosts.size(); ++i) {
         auto h = hosts[i];

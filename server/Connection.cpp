@@ -99,10 +99,12 @@ void UdpServer::run() {
             run();
             return;
         }
+#ifndef NDEBUG
         size_t reqSize = *reinterpret_cast<size_t*>(mBuffer.get());
         assert(reqSize == bt);
         auto cmd = *reinterpret_cast<Command*>(mBuffer.get() + sizeof(size_t));
         assert (cmd == Command::PROCESS_EVENT);
+#endif
         crossbow::deserializer des(reinterpret_cast<uint8_t*>(mBuffer.get() + sizeof(size_t) + sizeof(Command)));
         Event ev;
         des & ev;
@@ -237,6 +239,7 @@ public:
                 tx.commit();
                 success = true;
             } catch (std::exception& ex) {
+                std::cerr << ex.what() << std::endl;
                 tx.rollback();
                 success = false;
                 msg = ex.what();
