@@ -54,7 +54,7 @@ void Transactions::processEvent(Transaction& tx,
         // get the actual values in reverse reverse = actual order
         for (auto iter = tupleFutures.rbegin();
                     iter < tupleFutures.rend(); ++iter, ++eventIter) {
-            Tuple oldTuple = iter->get();
+            auto& oldTuple = iter->get();
             Timestamp ts =  oldTuple[context.timeStampId].value<Timestamp>();
             Tuple newTuple (oldTuple);
             for (auto &pair: context.tellIDToAIMSchemaEntry) {
