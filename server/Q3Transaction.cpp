@@ -61,9 +61,11 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
         selectionWriter.write<uint16_t>(0x1u);
         selectionWriter.advance(4);
 
+        auto predicatePtr = selectionWriter.data();
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
         selectionWriter.advance(2);
+        auto valuePtr = selectionWriter.data();
         selectionWriter.write<int32_t>(0);      // we are going to vary this
 
         // sort projection attributes
@@ -96,16 +98,16 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
         scanIterators.reserve(11);
         for (int32_t i = 0; i < 10; ++i)
         {
-            *(reinterpret_cast<int32_t*>(&selection[20])) = i;
+            *(reinterpret_cast<int32_t*>(valuePtr)) = i;
             scanIterators.push_back(clientHandle.scan(resultTable, snapshot,
                     *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
                     selection.get(), aggregationLength, aggregation.get()));
         }
 
         // projection on rest
-        *(reinterpret_cast<uint8_t*>(&selection[16])) =
+        *(reinterpret_cast<uint8_t*>(predicatePtr)) =
                 crossbow::to_underlying(PredicateType::GREATER_EQUAL);
-        *(reinterpret_cast<int32_t*>(&selection[20])) = 10;
+        *(reinterpret_cast<int32_t*>(valuePtr)) = 10;
 
         // add one more projection attributes for the non-aggregation scan
         projectionAttributes[context.callsSumAllWeek] = std::make_tuple(

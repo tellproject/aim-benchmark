@@ -62,6 +62,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
         selectionWriter.advance(2);
+        auto valuePtr = selectionWriter.data();
         selectionWriter.write<int32_t>(0);                // we are going to vary this
 
         // sort aggregation attributes
@@ -95,7 +96,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         scanIterators.reserve(numberOfRegions);
         for (int16_t i = 0; i < numberOfRegions; ++i)
         {
-            *(reinterpret_cast<int32_t*>(&selection[20])) = i;
+            *(reinterpret_cast<int32_t*>(valuePtr)) = i;
             scanIterators.push_back(clientHandle.scan(resultTable, snapshot,
                     *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
                     selection.get(), aggregationLength, aggregation.get()));

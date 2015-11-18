@@ -115,17 +115,23 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
         {   // find the corresponding IDs with 4 parallel scans
 
-            uint32_t selectionLength = 24;
+            uint32_t selectionLength = 32;
             std::unique_ptr<char[]> selection(new char[selectionLength]);
 
             crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-            selectionWriter.write<uint64_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x1u);
+            selectionWriter.write<uint32_t>(0x0u);
+            selectionWriter.write<uint32_t>(0x0u);
+
+            auto columnPtr = selectionWriter.data();
             selectionWriter.write<uint16_t>(context.durMaxLocalWeek);   // we are going to vary this
             selectionWriter.write<uint16_t>(0x1u);
             selectionWriter.align(sizeof(uint64_t));
             selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
             selectionWriter.write<uint8_t>(0x0u);
             selectionWriter.align(sizeof(uint32_t));
+            auto valuePtr = selectionWriter.data();
             selectionWriter.write<int32_t>(result.max_local_week);      // we are going to vary this
 
             std::vector<std::pair<id_t, int32_t>> selectionValues;
@@ -149,8 +155,8 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             std::vector<std::shared_ptr<ScanIterator>> scanIterators;
             scanIterators.reserve(4);
             for (uint i = 0; i < 4; ++i) {
-                *(reinterpret_cast<int16_t*>(&selection[8])) = selectionValues[i].first;
-                *(reinterpret_cast<int32_t*>(&selection[20])) = selectionValues[i].second;
+                *(reinterpret_cast<int16_t*>(columnPtr)) = selectionValues[i].first;
+                *(reinterpret_cast<int32_t*>(valuePtr)) = selectionValues[i].second;
                 scanIterators.push_back(
                         clientHandle.scan(resultTable, snapshot,
                         *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,

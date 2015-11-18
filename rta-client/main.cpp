@@ -51,14 +51,14 @@ std::vector<std::string> split(const std::string str, const char delim) {
 int main(int argc, const char** argv) {
     bool help = false;
     uint64_t numSubscribers = 10 * 1024 * 1024;
-    std::string workloadList;
+    std::string workloadList = "1,2,3,4,5,6,7";
     std::string hostList;
     std::string port("8713");
     std::string logLevel("DEBUG");
     std::string outFile("out.csv");
     size_t numClients = 1;
     unsigned time = 5*60;
-    unsigned processingThreads = 1u;
+    unsigned networkThreads = 1u;
     auto opts = create_options("rta_client",
             value<'h'>("help", &help, tag::description{"print help"})
             , value<'H'>("hosts", &hostList, tag::description{"Comma-separated list of hosts"})
@@ -68,7 +68,7 @@ int main(int argc, const char** argv) {
             , value<'w'>("workload", &workloadList, tag::description{"Comma-separated list of query numbers (1 to 7)"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
-            , value<'m'>("block-size", &processingThreads, tag::description{"size of scan memory blocks"})
+            , value<'N'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"})
             );
     try {
         parse(opts, argc, argv);
@@ -115,9 +115,9 @@ int main(int argc, const char** argv) {
             ip::tcp::resolver resolver(service);
             ip::tcp::resolver::iterator iter;
             if (hostList == "") {
-                iter = resolver.resolve(ip::tcp::resolver::query(port));
+                iter = resolver.resolve(ip::tcp::resolver::query(p));
             } else {
-                iter = resolver.resolve(ip::tcp::resolver::query(hostList, port));
+                iter = resolver.resolve(ip::tcp::resolver::query(addr[0], p));
             }
             for (unsigned j = 0; j < numClients; ++j) {
                 LOG_INFO("Connected to client " + crossbow::to_string(i*numClients + j));
@@ -131,8 +131,8 @@ int main(int argc, const char** argv) {
         }
 
         std::vector<std::thread> threads;
-        threads.reserve(processingThreads-1);
-        for (unsigned i = 0; i < processingThreads-1; ++i)
+        threads.reserve(networkThreads-1);
+        for (unsigned i = 0; i < networkThreads-1; ++i)
             threads.emplace_back([&service]{service.run();});
         service.run();
         for (auto &thread: threads)
