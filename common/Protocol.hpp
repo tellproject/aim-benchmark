@@ -472,6 +472,7 @@ public:
                     if (ec) {
                         Result res;
                         callback(ec, res);
+                        return;
                     }
                     readResponse<Callback, Result>(callback, bytes_read + br);
                 });
@@ -481,6 +482,10 @@ public:
     typename std::enable_if<std::is_void<Res>::value, void>::type
     error(const boost::system::error_code& ec, const Callback& callback) {
         callback(ec);
+
+        std::cerr << ec.message() << std::endl;
+        mSocket.close();
+        delete this;
     }
 
     template<class Res, class Callback>
@@ -488,6 +493,10 @@ public:
     error(const boost::system::error_code& ec, const Callback& callback) {
         Res res;
         callback(ec, res);
+
+        std::cerr << ec.message() << std::endl;
+        mSocket.close();
+        delete this;
     }
 
     template<Command C, class Callback, class... Args>
@@ -570,6 +579,8 @@ private:
                     [this](const error_code& ec, size_t bytes_written) {
                         if (ec) {
                             std::cerr << ec.message() << std::endl;
+                            mSocket.close();
+                            delete this;
                             return;
                         }
                         read(0);
@@ -599,6 +610,8 @@ private:
                     [this](const error_code& ec, size_t bytes_written) {
                         if (ec) {
                             std::cerr << ec.message() << std::endl;
+                            mSocket.close();
+                            delete this;
                             return;
                         }
                         read(0);
@@ -623,6 +636,12 @@ private:
         }
         mSocket.async_read_some(boost::asio::buffer(mBuffer.get() + bytes_read, mBufSize - bytes_read),
                 [this, bytes_read](const error_code& ec, size_t br){
+                    if (ec) {
+                        std::cerr << ec.message() << std::endl;
+                        mSocket.close();
+                        delete this;
+                        return;
+                    }
                     read(bytes_read + br);
                 });
     }
