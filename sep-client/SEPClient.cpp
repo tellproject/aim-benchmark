@@ -29,6 +29,7 @@ using err_code = boost::system::error_code;
 namespace aim {
 
 void PopulationClient::populate() {
+    LOG_INFO("Populating from %1% to %2%", mLowest, mHighest);
     populate(mLowest, mHighest);
 }
 
@@ -46,7 +47,7 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
                     return;
                 }
                 LOG_INFO(("Populated Table, subsriber " + crossbow::to_string(start)
-                          + " to " + crossbow::to_string(highest)));
+                          + " to " + crossbow::to_string(end)));
                 if (end < highest) {
                     populate(end + 1, highest);
                 }

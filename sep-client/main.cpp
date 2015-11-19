@@ -190,6 +190,7 @@ int main(int argc, const char** argv) {
         }
 
         LOG_INFO("Done, did send %1% events in %2% seconds", numEvents, runTime);
+        std::cout << '\a';
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }

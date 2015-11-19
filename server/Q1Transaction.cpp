@@ -72,7 +72,7 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
 
         Schema resultSchema(schema.type());
         resultSchema.addField(FieldType::BIGINT, "sum", true);
-        resultSchema.addField(FieldType::INT, "cnt", true);
+        resultSchema.addField(FieldType::BIGINT, "cnt", true);
         Table resultTable(wideTable.value, std::move(resultSchema));
 
         auto &snapshot = tx.snapshot();
@@ -86,7 +86,7 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
             size_t tupleLength;
             std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
             result.avg = resultTable.field<int64_t>("sum", tuple);
-            int32_t cnt = resultTable.field<int32_t>("cnt", tuple);
+            auto cnt = resultTable.field<int64_t>("cnt", tuple);
             if (cnt != 0)   // don-t divide by zero, report 0!
                 result.avg /= cnt;
             result.success = true;

@@ -170,25 +170,25 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
             auto &scanIterator = scanIterators[0];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_local_week_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
+                result.max_local_week_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[1];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_local_day_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
+                result.max_local_day_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[2];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_distant_week_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
+                result.max_distant_week_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
             }
 
             scanIterator = scanIterators[3];
             if (scanIterator->hasNext()) {
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                result.max_distant_day_id = resultTable.field<uint64_t>("min_subscriber_id", tuple);
+                result.max_distant_day_id = resultTable.field<int64_t>("min_subscriber_id", tuple);
             }
 
             // check for errors

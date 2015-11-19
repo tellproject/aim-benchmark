@@ -83,14 +83,14 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
 
 
         // sort aggregation attributes
-        std::map<id_t, std::tuple<AggregationType, FieldType,
-                crossbow::string>> aggregationAttributes;
-        aggregationAttributes[context.callsSumLocalWeek] = std::make_tuple(
-                AggregationType::SUM, FieldType::INT, "sum_calls_sum_local_week");
-        aggregationAttributes[context.callsSumLocalWeek] = std::make_tuple(
-                AggregationType::CNT, FieldType::INT, "cnt_calls_sum_local_week");
-        aggregationAttributes[context.durSumLocalWeek] = std::make_tuple(
-                AggregationType::SUM, FieldType::BIGINT, "dur_sum_local_week");
+        std::array<std::tuple<id_t, AggregationType, FieldType, crossbow::string>, 3> aggregationAttributes = {{
+                std::make_tuple(context.callsSumLocalWeek, AggregationType::SUM, FieldType::BIGINT,
+                        "sum_calls_sum_local_week"),
+                std::make_tuple(context.callsSumLocalWeek, AggregationType::CNT, FieldType::BIGINT,
+                        "cnt_calls_sum_local_week"),
+                std::make_tuple(context.durSumLocalWeek, AggregationType::SUM, FieldType::BIGINT,
+                "dur_sum_local_week")
+        }};
 
         Schema resultSchema(schema.type());
 
@@ -99,11 +99,9 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
 
         crossbow::buffer_writer aggregationWriter(aggregation.get(), aggregationLength);
         for (auto &attribute : aggregationAttributes) {
-            aggregationWriter.write<uint16_t>(attribute.first);
-            aggregationWriter.write<uint16_t>(
-                    crossbow::to_underlying(std::get<0>(attribute.second)));
-            resultSchema.addField(std::get<1>(attribute.second),
-                    std::get<2>(attribute.second), true);
+            aggregationWriter.write<uint16_t>(std::get<0>(attribute));
+            aggregationWriter.write<uint16_t>(crossbow::to_underlying(std::get<1>(attribute)));
+            resultSchema.addField(std::get<2>(attribute), std::get<3>(attribute), true);
         }
 
         Table resultTable(wideTable.value, std::move(resultSchema));
@@ -129,11 +127,11 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
                 const char* tuple;
                 size_t tupleLength;
                 std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-                int32_t sumCallsSumLocalWeek = resultTable.field<int32_t>(
+                auto sumCallsSumLocalWeek = resultTable.field<int64_t>(
                         "sum_calls_sum_local_week", tuple);
-                int32_t cntCallsSumLocalWeek = resultTable.field<int32_t>(
+                auto cntCallsSumLocalWeek = resultTable.field<int64_t>(
                         "cnt_calls_sum_local_week", tuple);
-                int64_t durSumLocalWeek = resultTable.field<int64_t>(
+                auto durSumLocalWeek = resultTable.field<int64_t>(
                         "dur_sum_local_week", tuple);
                 if (cntCallsSumLocalWeek > 0) {
                     Q4Out::Q4Tuple q4Tuple;

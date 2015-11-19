@@ -118,8 +118,8 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
                 flatRate /= durSumAll;
                 if (flatRate < result.flat_rate) {
                     result.flat_rate = flatRate;
-                    result.subscriber_id = resultTable.field<uint64_t>(
-                            "subscriber_sum_all", tuple);
+                    result.subscriber_id = resultTable.field<int64_t>(
+                            "subscriber_id", tuple);
                 }
             }
         }
