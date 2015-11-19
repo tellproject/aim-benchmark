@@ -23,6 +23,7 @@
 #pragma once
 #include <vector>
 #include <boost/asio.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <common/Protocol.hpp>
 
@@ -91,6 +92,7 @@ public:
 
 class UdpServer {
     boost::asio::ip::udp::socket mSocket;
+    boost::asio::steady_timer mTimer;
     tell::db::ClientManager<Context>& mClientManager;
     size_t mBufferSize;
     std::unique_ptr<char[]> mBuffer;
@@ -105,6 +107,7 @@ public:
               unsigned eventBatchSize,
               const AIMSchema &aimSchema)
         : mSocket(service)
+        , mTimer(service)
         , mClientManager(clientManager)
         , mBufferSize(1024)
         , mBuffer(new char[mBufferSize])
@@ -127,6 +130,9 @@ public:
     }
     void run();
     void bind(const std::string& addr, const std::string& port);
+private:
+    void listen();
+    void startTimer();
 };
 
 } // namespace aim

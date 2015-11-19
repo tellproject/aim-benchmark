@@ -32,6 +32,8 @@ using namespace boost::asio;
 
 namespace aim {
 
+std::atomic<unsigned> processedEvents(0);
+
 struct EventProcessor : public std::enable_shared_from_this<EventProcessor> {
 private:
     boost::asio::io_service& mService;
@@ -46,7 +48,9 @@ public:
         , mIsFree(isFree)
     {}
     void runTransaction(tell::db::Transaction& tx, Context& context) {
+        unsigned numEvents = events.size();
         mTransactions.processEvent(tx, context, events);
+        processedEvents.fetch_add(numEvents);
         auto fiber = mFiber;
         auto isFree = &mIsFree;
         mService.post([fiber, isFree]() {
@@ -92,6 +96,20 @@ void UdpServer::bind(const std::string& host, const std::string& port) {
 }
 
 void UdpServer::run() {
+    listen();
+    startTimer();
+}
+
+void UdpServer::startTimer() {
+    mTimer.expires_from_now(std::chrono::seconds(1));
+    mTimer.async_wait([this](const boost::system::error_code& ec){
+        unsigned events = processedEvents.exchange(0);
+        std::cout << events << std::endl;
+        startTimer();
+    });
+}
+
+void UdpServer::listen() {
     using err_code = boost::system::error_code;
     mSocket.async_receive(boost::asio::buffer(mBuffer.get(), mBufferSize), [this](const err_code& ec, size_t bt){
         if (ec) {
@@ -119,7 +137,8 @@ void UdpServer::run() {
             eventBatch.reserve(mEventBatchSize);
             processor->start(mClientManager, processingThread);
         }
-        eventBatch.push_back(ev);
+        if (eventBatch.size() < mEventBatchSize)
+            eventBatch.push_back(ev);
         run();
     });
 }
