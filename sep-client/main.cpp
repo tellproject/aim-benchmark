@@ -62,6 +62,7 @@ void connectClients(std::vector<Client>& clients,
     auto sumClients = numClients * hosts.size();
     auto subscribersPerClient = numSubscribers / sumClients;
     for (decltype(sumClients) i = 0; i < sumClients; ++i) {
+        if (i >= numSubscribers) break;
         auto lastSub = subscribersPerClient * (i + 1);
         if (i == sumClients - 1) {
             lastSub = numSubscribers;
