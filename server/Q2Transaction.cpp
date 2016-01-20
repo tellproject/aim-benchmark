@@ -48,7 +48,8 @@ Q2Out Transactions::q2Transaction(Transaction& tx, Context &context, const Q2In&
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
         selectionWriter.write<uint32_t>(0x1u);
-        selectionWriter.write<uint32_t>(0x1u);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.write<uint16_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
 
