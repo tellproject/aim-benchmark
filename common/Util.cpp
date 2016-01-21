@@ -33,6 +33,7 @@ template class singleton<aim::Random_t, create_static<aim::Random_t>, default_li
 namespace aim {
 
 Random_t::Random_t(size_t subscriberNum, uint8_t workloadSize) :
+    mRandomDevice(std::random_device()()),
     _double_distr(0.1, 100.0),
     _uint_distr(1, 10000),
     _ulong_distr(1, subscriberNum),
