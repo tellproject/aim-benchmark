@@ -116,8 +116,7 @@ int main(int argc, const char** argv) {
     config.commitManager = config.parseCommitManager(commitManager);
     config.tellStore = config.parseTellStore(storageNodes);
     tell::db::ClientManager<aim::Context> clientManager(config);
-    clientManager.allocateScanMemory(
-            config.tellStore.size() * processingThreads * scanBlockNumber, scanBlockSize);
+    clientManager.allocateScanMemory(scanBlockNumber, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
