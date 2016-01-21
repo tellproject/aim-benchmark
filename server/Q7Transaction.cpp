@@ -95,6 +95,31 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
         }
 
         Table resultTable(wideTable.value, std::move(resultSchema));
+        auto& resultRecord = resultTable.record();
+
+        Record::id_t subscriberIdField;
+        if (!resultRecord.idOf("subscriber_id", subscriberIdField)) {
+            throw std::runtime_error("subscriber_id field not found");
+        }
+        auto subscriberIdOffset = resultRecord.getFieldMeta(subscriberIdField).offset;
+
+        Record::id_t costSumAllField;
+        if (!resultRecord.idOf("cost_sum_all", costSumAllField)) {
+            throw std::runtime_error("cost_sum_all field not found");
+        }
+        auto costSumAllOffset = resultRecord.getFieldMeta(costSumAllField).offset;
+
+        Record::id_t durSumAllField;
+        if (!resultRecord.idOf("dur_sum_all", durSumAllField)) {
+            throw std::runtime_error("dur_sum_all field not found");
+        }
+        auto durSumAllOffset = resultRecord.getFieldMeta(durSumAllField).offset;
+
+        Record::id_t callsSumAllField;
+        if (!resultRecord.idOf("calls_sum_all", callsSumAllField)) {
+            throw std::runtime_error("calls_sum_all field not found");
+        }
+        auto callsSumAllOffset = resultRecord.getFieldMeta(callsSumAllField).offset;
 
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();
@@ -108,19 +133,14 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
             const char* tuple;
             size_t tupleLength;
             std::tie(std::ignore, tuple, tupleLength) = scanIterator->next();
-            int32_t callsSumAll;
-            int64_t durSumAll;
-            if ((callsSumAll = resultTable.field<int32_t>(
-                        "calls_sum_all", tuple)) &&
-                            (durSumAll = resultTable.field<int64_t>(
-                                "dur_sum_all", tuple))) {
-                double flatRate = resultTable.field<double>(
-                        "cost_sum_all", tuple);
+            auto callsSumAll = *reinterpret_cast<const int32_t*>(tuple + callsSumAllOffset);
+            auto durSumAll = *reinterpret_cast<const int64_t*>(tuple + durSumAllOffset);
+            if (callsSumAll && durSumAll) {
+                auto flatRate = *reinterpret_cast<const double*>(tuple + costSumAllOffset);
                 flatRate /= durSumAll;
                 if (flatRate < result.flat_rate) {
                     result.flat_rate = flatRate;
-                    result.subscriber_id = resultTable.field<int64_t>(
-                            "subscriber_id", tuple);
+                    result.subscriber_id = *reinterpret_cast<const int64_t*>(tuple + subscriberIdOffset);
                 }
             }
         }
