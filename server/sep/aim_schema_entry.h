@@ -35,10 +35,6 @@
 using namespace aim;
 
 /*
- * The template argument T is the type of the schema entry itself. It can either
- * be a primitive type (like int or double) or a specific database field type
- * (e.g. tell::db::Field)
- *
  * SchemaEntry: describes an attribute in the AM record. Each value has a Window
  * and a Value type. At construction time we define functions responsible for
  * initializing, updating and maintaining an AM attribute.
@@ -66,38 +62,55 @@ template <typename T>
 class AIMSchemaEntry
 {
 public:
-    typedef T (*InitDefFPtr)();
-    typedef T& (*InitFPtr)(T&, const Event&);
+    typedef tell::db::Field (*InitDefFPtr)();
+    typedef tell::db::Field& (*InitFPtr)(tell::db::Field&, const Event&);
 
-    typedef T& (*UpdateFPtr)(T& , const AIMSchemaEntry&,
+    typedef tell::db::Field& (*UpdateFPtr)(tell::db::Field& , const AIMSchemaEntry&,
                                    Timestamp, const Event&);
 
-    typedef T& (*MaintainFPtr)(T&, const AIMSchemaEntry&,
+    typedef tell::db::Field& (*MaintainFPtr)(tell::db::Field&, const AIMSchemaEntry&,
                                      Timestamp, const Event&);
 
     typedef bool (*FilterFPtr)(const Event&);
 
+    // simler versions used for other databases than Tell
+
+    typedef T (*SimpleInitDefFPtr)();
+    typedef T& (*SimpleInitFPtr)(T&, const Event&);
+
+    typedef T& (*SimpleUpdateFPtr)(T& , const AIMSchemaEntry&,
+                                   Timestamp, const Event&);
+
+    typedef T& (*SimpleMaintainFPtr)(T&, const AIMSchemaEntry&,
+                                     Timestamp, const Event&);
+
+    AIMSchemaEntry(Value value, Window window, InitDefFPtr init_def, InitFPtr init,
+                UpdateFPtr update, MaintainFPtr maintain, FilterType filter_type,
+                FilterFPtr filter, InitDefFPtr simple_init_def, InitFPtr simple_init,
+                   UpdateFPtr simple_update, MaintainFPtr simple_maintain
+                );
 public:
     /*
      * The following functions are wrappers for the various function pointers.
+     * All these functions return a reference to tell::db::Field.
      */
-    T initDef() const
+    tell::db::Field initDef() const
     {
         return _init_def();
     }
 
-    T &init(T& field, const Event& e) const
+    tell::db::Field &init(tell::db::Field& field, const Event& e) const
     {
         return _init(field, e);
     }
 
-    T &update(T &field,
+    tell::db::Field &update(tell::db::Field &field,
                     Timestamp old_ts, const Event& e) const
     {
         return _update(field, *this, old_ts, e);
     }
 
-    T &maintain(T &field,
+    tell::db::Field &maintain(tell::db::Field &field,
                     Timestamp old_ts, const Event& e) const
     {
         return _maintain(field, *this, old_ts, e);
@@ -106,6 +119,32 @@ public:
     bool filter(const Event& event) const
     {
         return _filter(event);
+    }
+
+    /*
+     * The following functions are wrappers for the simpler function pointers.
+     * All these functions return a reference to T.
+     */
+    T simpleInitDef() const
+    {
+        return _simple_init_def();
+    }
+
+    T &simpleInit(T& value, const Event& e) const
+    {
+        return _simple_init(value, e);
+    }
+
+    T &simpleUpdate(T &value,
+                    Timestamp old_ts, const Event& e) const
+    {
+        return _simple_update(value, *this, old_ts, e);
+    }
+
+    T &simpleMaintain(T &value,
+                    Timestamp old_ts, const Event& e) const
+    {
+        return _simple_maintain(value, *this, old_ts, e);
     }
 
 public:
@@ -130,6 +169,10 @@ private:
     MaintainFPtr _maintain;
     FilterType _filter_type;
     FilterFPtr _filter;
+    InitDefFPtr _simple_init_def;
+    InitFPtr _simple_init;
+    UpdateFPtr _simple_update;
+    MaintainFPtr _simple_maintain;
 };
 
 /*
@@ -163,6 +206,14 @@ struct DurExtractor
     static type def() { return 0; }
 };
 
+/*
+ * For the following functions:
+ * f_tmp -> pointer to the full record
+ * r_tmp -> pointer to the record we retrieved - previous record of this subscriber.
+ * In all the initDef, init, update and maintain functions we generate both the
+ * full and the compact record.
+ */
+
 
 /*
  * These functions are used for default initialization of an attribute value.
@@ -170,78 +221,73 @@ struct DurExtractor
 
 template <typename Extractor>
 typename Extractor::sum_type
-initSumDef()
+simpleInitSumDef()
 {
     return Extractor::sum_type(Extractor::def());
 }
 
 template <typename Extractor>
+tell::db::Field
+initSumDef()
+{
+    return tell::db::Field(simpleInitSumDef<Extractor>());
+}
+
+template <typename Extractor>
 typename Extractor::type
-initMaxDef()
+simpleInitMaxDef()
 {
     return std::numeric_limits<typename Extractor::type>::min();
 }
 
 template <typename Extractor>
+tell::db::Field
+initMaxDef()
+{
+    return tell::db::Field(simpleInitMaxDef<Extractor>());
+}
+
+template <typename Extractor>
 typename Extractor::type
-initMinDef()
+simpleInitMinDef()
 {
     return std::numeric_limits<typename Extractor::type>::max();
 }
 
+template <typename Extractor>
+tell::db::Field
+initMinDef()
+{
+    return tell::db::Field(simpleInitMinDef<Extractor>());
+}
+
 /*
  * The functions below are used for normal initialization using event attribute
- * values. For min and max we can use the same function here
+ * values. One function for doing this is actually enough
  */
 
 template <typename Extractor>
-typename Extractor::type &initMinMax(const Event &e)
+typename Extractor::type &simpleInitMinMax(const Event &e)
 {
     return Extractor::extract(e);
 }
 
 template <typename Extractor>
-typename Extractor::sum_type &initSum(const Event &e)
+tell::db::Field &initMinMax(tell::db::Field &field, const Event &e)
+{
+    return (field = tell::db::Field(Extractor::simpleInitMinMax));
+}
+
+template <typename Extractor>
+typename Extractor::sum_type &simpleInitSum(const Event &e)
 {
     return Extractor::sum_type(Extractor::extract(e));
 }
 
-/*
- * The following functions contain specializations to wrap values
- * into something else of type T (e.g. into a field)
- */
-
-template <typename Extractor, typename T>
-T
-initSumDef()
+template <typename Extractor>
+tell::db::Field &initSum(tell::db::Field &field, const Event &e)
 {
-    return T(initSumDef<Extractor>());
-}
-
-template <typename Extractor, typename T>
-T
-initMaxDef()
-{
-    return T(initMaxDef<Extractor>());
-}
-
-template <typename Extractor, typename T>
-T
-initMinDef()
-{
-    return T(initMinDef<Extractor>());
-}
-
-template <typename Extractor, typename T>
-T &initMinMax(T &field, const Event &e)
-{
-    return (field = T(Extractor::initMinMax));
-}
-
-template <typename Extractor, typename T>
-T &initSum(T &field, const Event &e)
-{
-    return (field = T(Extractor::simpleInitSum(e)));
+    return (field = tell::db::Field(Extractor::simpleInitSum(e)));
 }
 
 /*
@@ -249,70 +295,113 @@ T &initSum(T &field, const Event &e)
  * write the exact same value as before. Otherwise we reset the value.
  */
 
-template <typename T>
-inline bool belongToSameWindow(const AIMSchemaEntry<T> &se,
-        Timestamp old_ts, const Event &e) {
+template <typename Extractor, typename T>
+T&
+simpleMaintain(T &value, const AIMSchemaEntry<T> &se,
+         Timestamp old_ts, const Event &e)
+{
     Timestamp win_start = (old_ts - se.winInitInfo()) / se.winDuration();
     win_start = win_start * se.winDuration() + se.winInitInfo();
 
-    return (e.timestamp <= win_start + se.winDuration());
-}
-
-template <typename Extractor, typename T>
-T&
-maintain(T &value, const AIMSchemaEntry<T> &se,
-         Timestamp old_ts, const Event &e)
-{
-    if (belongToSameWindow(se, old_ts, e)) {
+    if (e.timestamp <= win_start + se.winDuration()) { //belong to the same window
         //copy previous value the same value
         return value;
     }
-    else {                                  //different windows->def init
-        return (value = se.initDef());      //init function forwards field
+    else {                                        //different windows->def init
+        return (value = se.simpleInitDef());      //init function forwards field
     }
 }
 
 template <typename Extractor, typename T>
+tell::db::Field&
+maintain(tell::db::Field &field, const AIMSchemaEntry<T> &se,
+         Timestamp old_ts, const Event &e)
+{
+    Timestamp win_start = (old_ts - se.winInitInfo()) / se.winDuration();
+    win_start = win_start * se.winDuration() + se.winInitInfo();
+
+    if (e.timestamp <= win_start + se.winDuration()) { //belong to the same window
+        //copy previous value the same value
+        return field;
+    }
+    else {                                        //different windows->def init
+        return (field = se.initDef());               //init function forwards field
+    }
+}
+
+/// Todo: CONTINUE HERE ///
+template <typename Extractor, typename T>
 T&
-updateSum(T &value, const AIMSchemaEntry<T> &se,
+simpleUpdateSum(T &value, const AIMSchemaEntry<T> &se,
           Timestamp old_ts, const Event &e)
 {
     using sum_type = typename Extractor::sum_type;
+    Timestamp win_start;
     auto t_val = sum_type(Extractor::extract(e));     //take the new value from the event
 
+    win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
+    win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
 
-    if (belongToSameWindow(se, old_ts, e)) {
-        return ((value) += T(t_val));
+    if (e.timestamp <= win_start + se.winDuration()) {
+        return ((value) += t_val);
     }
     else {
-        return (value = T(t_val));
+        return (value = t_val);
     }
 }
 
 template <typename Extractor, typename T>
-T&
-updateMax(T &value, const AIMSchemaEntry<T> &se,
+tell::db::Field&
+updateSum(tell::db::Field &field, const AIMSchemaEntry<T> &se,
           Timestamp old_ts, const Event &e)
 {
-    auto t_val = Extractor::extract(e);     //take the new value from the event
+    using sum_type = typename Extractor::sum_type;
+    Timestamp win_start;
+    auto t_val = sum_type(Extractor::extract(e));     //take the new value from the event
 
-    if (belongToSameWindow(se, old_ts, e) && value >= T(t_val)) {
-        return value;
+    win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
+    win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
+
+    if (e.timestamp <= win_start + se.winDuration()) {
+        return ((field) += tell::db::Field(t_val));
     }
-    return (value = T(t_val));
+    else {
+        return (field = tell::db::Field(t_val));
+    }
 }
 
-template <typename Extractor, typename T>
-T&
-updateMin(T &value, const AIMSchemaEntry<T> &se,
+template <typename Extractor>
+tell::db::Field&
+updateMax(tell::db::Field &field, const AIMSchemaEntry &se,
           Timestamp old_ts, const Event &e)
 {
+    Timestamp win_start;
     auto t_val = Extractor::extract(e);     //take the new value from the event
 
-    if (belongToSameWindow(se, old_ts, e) && value <= T(t_val)) {
-        return value;
+    win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
+    win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
+
+    if (e.timestamp <= win_start + se.winDuration() && field >= tell::db::Field(t_val)) {
+        return field;
     }
-    return (value = T(t_val));
+    return (field = tell::db::Field(t_val));
+}
+
+template <typename Extractor>
+tell::db::Field&
+updateMin(tell::db::Field &field, const AIMSchemaEntry &se,
+          Timestamp old_ts, const Event &e)
+{
+    Timestamp win_start;
+    auto t_val = Extractor::extract(e);     //take the new value from the event
+
+    win_start = (old_ts - se.winInitInfo()) / se.winDuration();   //calculating closest Monday
+    win_start = win_start * se.winDuration() + se.winInitInfo();  //when the window starts
+
+    if (e.timestamp <= win_start + se.winDuration() && field <= tell::db::Field(t_val)) {
+        return field;
+    }
+    return (field = tell::db::Field(t_val));
 }
 
 /*
