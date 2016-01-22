@@ -27,7 +27,6 @@
 #include <common/Util.hpp>
 
 #include "server/sep/aim_schema.h"
-#include "server/rta/dimension_schema.h"
 
 namespace tell {
 namespace db {

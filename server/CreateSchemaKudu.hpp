@@ -24,6 +24,8 @@
 
 #include <kudu/client/client.h>
 
+#include "server/sep/aim_schema.h"
+
 namespace aim {
 
 void createSchema(kudu::client::KuduSession& session, const int64_t subscriberNum, const AIMSchema &aimSchema, int partitions);

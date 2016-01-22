@@ -25,7 +25,12 @@
 #include <common/Util.hpp>
 #include <kudu/client/client.h>
 
+#include "server/sep/aim_schema.h"
+#include "AimContext.hpp"
+
 namespace aim {
+
+struct Context;
 
 class Transactions {
 
@@ -51,5 +56,7 @@ public:
 
 private:
     const AIMSchema &mAimSchema;
+
+};
 
 } // namespace aim

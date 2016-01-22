@@ -24,8 +24,7 @@
 
 #include <cassert>
 
-template <typename T>
-AIMSchemaEntry<T>::AIMSchemaEntry<T>(Value value, Window window, InitDefFPtr init_def,
+AIMSchemaEntry::AIMSchemaEntry(Value value, Window window, InitDefFPtr init_def,
                                InitFPtr init, UpdateFPtr update, MaintainFPtr
                                maintain, FilterType filter_type, FilterFPtr filter):
 

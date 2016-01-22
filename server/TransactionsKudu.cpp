@@ -26,9 +26,7 @@
 
 #include <boost/unordered_map.hpp>
 
-#include "Connection.hpp"
-
-namespace aim {
+#include <functional>
 
 using namespace kudu;
 using namespace kudu::client;
@@ -121,6 +119,10 @@ void set(KuduWriteOperation& upd, const Slice& slice, int64_t v) {
     assertOk(upd.mutable_row()->SetInt64(slice, v));
 }
 
+void set(KuduWriteOperation& upd, const Slice& slice, double v) {
+    assertOk(upd.mutable_row()->SetDouble(slice, v));
+}
+
 void set(KuduWriteOperation& upd, const Slice& slice, std::nullptr_t) {
     assertOk(upd.mutable_row()->SetNull(slice));
 }
@@ -129,7 +131,31 @@ void set(KuduWriteOperation& upd, const Slice& slice, const Slice& str) {
     assertOk(upd.mutable_row()->SetString(slice, str));
 }
 
-void Transactions::processEvent(Transaction& tx,
+void getField(KuduRowResult &row, const std::string &columnName, int32_t &result) {
+    assertOk(row.GetInt32(columnName, &result));
+}
+
+void getField(KuduRowResult &row, const std::string &columnName, int64_t &result) {
+    assertOk(row.GetInt64(columnName, &result));
+}
+
+void getField(KuduRowResult &row, const std::string &columnName, double &result) {
+    assertOk(row.GetDouble(columnName, &result));
+}
+
+using namespace aim;
+
+template <typename T, typename Fun>
+void updateTuple (Fun fun, const std::string &columName,
+        KuduRowResult &oldTuple, KuduWriteOperation &upd, Event &event, Timestamp ts) {
+    T value;
+    getField(oldTuple, columName, value);
+    tell::db::Field field (value);
+    auto f = fun(field, ts, event);
+    set(upd, columName, f.template value<T>());
+}
+
+void Transactions::processEvent(kudu::client::KuduSession& session,
             Context &context, std::vector<Event> &events) {
 
     try {
@@ -137,101 +163,58 @@ void Transactions::processEvent(Transaction& tx,
         session.client()->OpenTable("wt", &wTable);
 
         ScannerList scanners;
-        std::vector<KuduRowResult> tupleFutures;
-        tupleFutures.reserve(events.size());
+        std::vector<KuduRowResult> oldTuples;
+        oldTuples.reserve(events.size());
 
         // get futures in reverse order
         for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
-            tupleFutures.emplace_back(
+            oldTuples.emplace_back(
                         get(*wTable, scanners, "subscriber_id", iter->caller_id));
         }
 
         auto eventIter = events.begin();
         // get the actual values in reverse reverse = actual order
-        for (auto iter = tupleFutures.rbegin();
-                    iter < tupleFutures.rend(); ++iter, ++eventIter) {
+        for (auto iter = oldTuples.rbegin();
+                    iter < oldTuples.rend(); ++iter, ++eventIter) {
 
             auto& oldTuple = *iter;
-            Timestamp ts =  oldTuple[context.timeStampId].value<Timestamp>();
+            Timestamp ts;
+            assertOk(oldTuple.GetInt64("last_updated", &ts));
 
-            auto ins = table->NewInsert();
-            auto newTuple = ins->mutable_row();
+            std::unique_ptr<KuduWriteOperation> upd(wTable->NewUpdate());
 
             for (auto &pair: context.tellIDToAIMSchemaEntry) {
-                if (pair.second.filter(oldTuple))
-                    pair.second.update(newTuple[pair.first], ts, *eventIter);
-                else
-                    pair.second.maintain(newTuple[pair.first], ts, *eventIter);
-            }
-            tx.update(wideTable, tell::db::key_t{eventIter->caller_id},
-                      oldTuple, newTuple);
-        }
+                auto &schemaEntry = pair.second;
+                std::function<tell::db::Field(tell::db::Field& ,Timestamp, const Event&)> fun;
 
-        tx.commit();
+                using namespace std::placeholders;
+                if (schemaEntry.filter(*eventIter))
+                    fun = std::bind(&AIMSchemaEntry::update, schemaEntry, _1, _2, _3);
+                else
+                    fun =std::bind(&AIMSchemaEntry::maintain, schemaEntry, _1, _2, _3);
+                std::string fieldName (schemaEntry.name().c_str(), schemaEntry.name().size());
+                switch (schemaEntry.type()) {
+                case tell::store::FieldType::INT:
+                    updateTuple<int32_t>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    break;
+                case tell::store::FieldType::BIGINT:
+                    updateTuple<int64_t>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    break;
+                case tell::store::FieldType::DOUBLE:
+                    updateTuple<double>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    break;
+                default:
+                    //
+                    assert(false);
+                }
+            }
+            assertOk(session.Apply(upd.release()));
+        }
+        assertOk(session.Flush());
     } catch (std::exception& ex) {
         LOG_ERROR("FATAL: Connection aborted for event, this must not happen, ex = %1%", ex.what());
         std::terminate();
     }
+
+    //TODO: continue with other transactions here...
 }
-
-
-StockLevelResult Transactions::stockLevel(KuduSession& session, const StockLevelIn& in) {
-    StockLevelResult result;
-    result.low_stock = 0;
-    try {
-        std::tr1::shared_ptr<KuduTable> sTable;
-        std::tr1::shared_ptr<KuduTable> olTable;
-        std::tr1::shared_ptr<KuduTable> oTable;
-        std::tr1::shared_ptr<KuduTable> dTable;
-        session.client()->OpenTable("district", &dTable);
-        session.client()->OpenTable("order", &oTable);
-        session.client()->OpenTable("order-line", &olTable);
-        session.client()->OpenTable("stock", &sTable);
-
-        ScannerList scanners;
-        // get District
-        auto district = get(*dTable, scanners, "d_w_id", in.w_id, "d_id", in.d_id);
-        int32_t d_next_o_id;
-        assertOk(district.GetInt32("d_next_o_id", &d_next_o_id));
-
-        scanners.emplace_back(new KuduScanner(olTable.get()));
-        auto& olScanner = scanners.back();
-        addPredicates(*olTable, *olScanner, "ol_w_id", in.w_id, "ol_d_id", in.d_id);
-        assertOk(olScanner->AddConjunctPredicate(olTable->NewComparisonPredicate("ol_o_id", KuduPredicate::GREATER_EQUAL, KuduValue::FromInt(d_next_o_id - 20))));
-        olScanner->Open();
-
-        // count low_stock
-        result.low_stock = 0;
-        std::vector<KuduRowResult> rows;
-        std::unique_ptr<KuduScanner> scanner;
-        while (olScanner->HasMoreRows()) {
-            olScanner->NextBatch(&rows);
-            for (auto& row : rows) {
-                int32_t ol_i_id;
-                assertOk(row.GetInt32("ol_i_id", &ol_i_id));
-                scanner.reset(new KuduScanner(sTable.get()));
-                addPredicates(*sTable, *scanner, "s_w_id", in.w_id, "s_i_id", ol_i_id);
-                scanner->Open();
-                std::vector<KuduRowResult> stocks;
-                while (scanner->HasMoreRows()) {
-                    scanner->NextBatch(&stocks);
-                    for (auto& stock : stocks) {
-                        int32_t s_quantity;
-                        assertOk(stock.GetInt32("s_quantity", &s_quantity));
-                        if (s_quantity < in.threshold) {
-                            ++result.low_stock;
-                        }
-                    }
-                }
-            }
-        }
-        result.success = true;
-        return result;
-    } catch (std::exception& ex) {
-        result.success = false;
-        result.error = ex.what();
-    }
-    return result;
-}
-
-} // namespace aim

@@ -28,12 +28,14 @@
 
 #include <kudu/client/client.h>
 
+#include "server/sep/aim_schema.h"
+
 namespace aim {
 
 class Populator {
     crossbow::string mOriginal = "ORIGINAL";
 public:
-    void populateWideTable(kudu::client::KuduSession& transaction,
+    void populateWideTable(kudu::client::KuduSession& session,
                 const AIMSchema &aimSchema,
                 uint64_t lowest, uint64_t highest);
 };
