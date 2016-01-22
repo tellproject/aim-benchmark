@@ -47,7 +47,7 @@
 class AIMSchemaBuilder
 {
 public:
-    using SE<T> = AIMSchemaEntry<T>;
+    typedef AIMSchemaEntry SE;
     AIMSchemaBuilder() = default;
 
     /*
