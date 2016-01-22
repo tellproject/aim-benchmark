@@ -26,13 +26,9 @@
 
 AIMSchemaEntry::AIMSchemaEntry(Value value, Window window, InitDefFPtr init_def,
                                InitFPtr init, UpdateFPtr update, MaintainFPtr
-                               maintain, FilterType filter_type, FilterFPtr filter,
-                               InitDefFPtr simple_init_def, InitFPtr simple_init,
-                               UpdateFPtr simple_update, MaintainFPtr simple_maintain):
+                               maintain, FilterType filter_type, FilterFPtr filter):
 
     _value(value), _window(window), _size(value.dataSize()),
     _init_def(init_def), _init(init), _update(update),
-    _maintain(maintain), _filter_type(filter_type), _filter(filter),
-    _simple_init_def(simple_init_def), _simple_init(simple_init),
-    _simple_update(simple_update), _simple_maintain(simple_maintain)
+    _maintain(maintain), _filter_type(filter_type), _filter(filter)
 {}
