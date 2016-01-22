@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(aim-benchmark)
 
+# Set CMake modules path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
+find_package(Jemalloc REQUIRED)
 
 set(COMMON_SRC
     common/Protocol.cpp
@@ -19,7 +23,7 @@ set(COMMON_SRC
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16 -ftemplate-depth=512 -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16")
 
 add_library(aim_common STATIC ${COMMON_SRC})
 # Workaround for link failure with GCC 5 (GCC Bug 65913)
@@ -27,6 +31,7 @@ add_library(aim_common STATIC ${COMMON_SRC})
 #    target_link_libraries(aim_common PUBLIC atomic)
 #endif()
 target_include_directories(aim_common PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(aim_common PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_include_directories(aim_common PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(aim_common PUBLIC ${Boost_LIBRARIES})
 target_link_libraries(aim_common PUBLIC telldb)
@@ -56,16 +61,12 @@ set(SERVER_SRC
     server/sep/aim_schema_entry.h
     server/sep/schema_and_index_builder.cpp
     server/sep/schema_and_index_builder.h
-    server/sep/sep.cpp
-    server/sep/sep.h
     server/sep/utils.cpp
     server/sep/utils.h
     server/sep/value.cpp
     server/sep/value.h
     server/sep/window.cpp
     server/sep/window.h
-    server/rta/Controller.cpp
-    server/rta/Controller.h
     server/rta/dimension_record.cpp
     server/rta/dimension_record.h
     server/rta/dimension_schema.cpp
@@ -90,13 +91,37 @@ set(RTA_CLIENT_SRC
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BINARY_DIR}/meta_db.db COPYONLY)
 
 add_executable(aim_server ${SERVER_SRC})
-target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(aim_server aim_common dl)
+target_link_libraries(aim_server PRIVATE aim_common dl)
+target_include_directories(aim_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
+target_link_libraries(aim_server PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(sep_client ${SEP_CLIENT_SRC})
-target_include_directories(sep_client PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(sep_client aim_common)
+target_link_libraries(sep_client PRIVATE aim_common)
+target_include_directories(sep_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
+target_link_libraries(sep_client PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(rta_client ${RTA_CLIENT_SRC})
-target_include_directories(rta_client PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(rta_client aim_common)
+target_link_libraries(rta_client PRIVATE aim_common)
+target_include_directories(rta_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
+target_link_libraries(rta_client PRIVATE ${Jemalloc_LIBRARIES})
+
+set(USE_KUDU OFF CACHE BOOL "Build AIM for Kudu")
+if(${USE_KUDU})
+    set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
+    find_package(kuduClient REQUIRED)
+    find_package(Threads)
+    message(STATUS "Kudu header found at ${KUDU_CLIENT_INCLUDE_DIR}")
+
+    set(KUDU_SERVER_SRC
+        server/kudu.cpp
+        server/CreateSchemaKudu.cpp
+        server/PopulateKudu.cpp
+        server/TransactionsKudu.cpp)
+
+    add_executable(aim_kudu ${KUDU_SERVER_SRC})
+    target_include_directories(aim_kudu PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
+    target_compile_definitions(aim_kudu PRIVATE AIM_KUDU)
+    target_link_libraries(aim_kudu kudu_client)
+    target_link_libraries(aim_kudu aim_common)
+    target_link_libraries(aim_kudu ${CMAKE_THREAD_LIBS_INIT})
+endif()
