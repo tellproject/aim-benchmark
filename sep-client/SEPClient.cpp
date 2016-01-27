@@ -55,29 +55,6 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
             std::make_tuple(start, end));
 }
 
-
-//template <Command C>
-//void SEPClient::execute(const typename Signature<C>::arguments &arg) {
-//    auto now = Clock::now();
-//    if (now > mEndTime) {
-//        // Time's up
-//        // benchmarking finished
-//        return;
-//    }
-//    mCmds.execute<C>(
-//      [this, now](const err_code &ec) {
-//          if (ec) {
-//              LOG_ERROR("Error: " + ec.message());
-//              return;
-//          }
-//          auto end = Clock::now();
-//          mLog.push_back(LogEntry{true, "", C, now, end});
-//          run();
-//      },
-//      arg);
-//}
-//
-
 SEPClient::SEPClient(SEPClient&&) = default;
 
 void SEPClient::run(unsigned messageRate) {

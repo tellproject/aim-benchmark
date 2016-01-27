@@ -415,9 +415,7 @@ public:
 
 Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<Context>& clientManager,
-                const AIMSchema &aimSchema,
-                size_t processingThreads,
-                unsigned eventBatchSize)
+                const AIMSchema &aimSchema)
     : mSocket(service)
     , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema))
 {}

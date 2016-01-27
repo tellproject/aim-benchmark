@@ -41,13 +41,9 @@ using namespace boost::asio;
 void accept(boost::asio::io_service &service,
         boost::asio::ip::tcp::acceptor &a,
         tell::db::ClientManager<aim::Context>& clientManager,
-        const AIMSchema &aimSchema,
-        size_t processingThreads,
-        unsigned eventBatchSize) {
-    auto conn = new aim::Connection(service, clientManager, aimSchema,
-                processingThreads, eventBatchSize);
-    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager,
-                processingThreads, &aimSchema, eventBatchSize](
+        const AIMSchema &aimSchema) {
+    auto conn = new aim::Connection(service, clientManager, aimSchema);
+    a.async_accept(conn->socket(), [conn, &service, &a, &clientManager, &aimSchema](
                    const boost::system::error_code &err) {
         if (err) {
             delete conn;
@@ -55,7 +51,7 @@ void accept(boost::asio::io_service &service,
             return;
         }
         conn->run();
-        accept(service, a, clientManager, aimSchema, processingThreads, eventBatchSize);
+        accept(service, a, clientManager, aimSchema);
     });
 }
 
@@ -150,8 +146,7 @@ int main(int argc, const char** argv) {
         }
         a.listen();
         // we do not need to delete this object, it will delete itself
-        accept(service, a, clientManager, aimSchema, config.numNetworkThreads,
-               eventBatchSize);
+        accept(service, a, clientManager, aimSchema);
 
         aim::UdpServer udpServer(service, clientManager, processingThreads, eventBatchSize, aimSchema);
         udpServer.bind(host, udpPort);

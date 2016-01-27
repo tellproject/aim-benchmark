@@ -25,15 +25,14 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16")
 
+find_package(Threads)
+
 add_library(aim_common STATIC ${COMMON_SRC})
-# Workaround for link failure with GCC 5 (GCC Bug 65913)
-#if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-#    target_link_libraries(aim_common PUBLIC atomic)
-#endif()
+target_include_directories(aim_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(aim_common PUBLIC ${Boost_INCLUDE_DIRS})
 target_include_directories(aim_common PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_include_directories(aim_common PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(aim_common PUBLIC ${Boost_LIBRARIES})
+target_link_libraries(aim_common PUBLIC crossbow_logger)
 target_link_libraries(aim_common PUBLIC telldb)
 
 set(SERVER_SRC
@@ -92,16 +91,17 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BIN
 
 add_executable(aim_server ${SERVER_SRC})
 target_link_libraries(aim_server PRIVATE aim_common dl)
+target_link_libraries(aim_server PUBLIC crossbow_allocator)
 target_include_directories(aim_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(aim_server PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(sep_client ${SEP_CLIENT_SRC})
-target_link_libraries(sep_client PRIVATE aim_common)
+target_link_libraries(sep_client PRIVATE aim_common ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(sep_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(sep_client PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(rta_client ${RTA_CLIENT_SRC})
-target_link_libraries(rta_client PRIVATE aim_common)
+target_link_libraries(rta_client PRIVATE aim_common ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(rta_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(rta_client PRIVATE ${Jemalloc_LIBRARIES})
 
@@ -121,7 +121,10 @@ if(${USE_KUDU})
     add_executable(aim_kudu ${KUDU_SERVER_SRC})
     target_include_directories(aim_kudu PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
     target_compile_definitions(aim_kudu PRIVATE AIM_KUDU)
-    target_link_libraries(aim_kudu kudu_client)
-    target_link_libraries(aim_kudu aim_common)
-    target_link_libraries(aim_kudu ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(aim_kudu PRIVATE kudu_client)
+    target_link_libraries(aim_kudu PRIVATE aim_common)
+    target_link_libraries(aim_kudu PUBLIC crossbow_allocator)
+    target_link_libraries(aim_kudu PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+    target_include_directories(aim_kudu PRIVATE ${Jemalloc_INCLUDE_DIRS})
+    target_link_libraries(aim_kudu PRIVATE ${Jemalloc_LIBRARIES})
 endif()

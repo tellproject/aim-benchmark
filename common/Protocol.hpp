@@ -74,7 +74,7 @@ struct Signature<Command::POPULATE_TABLE> {
 template<>
 struct Signature<Command::CREATE_SCHEMA> {
     using result = std::tuple<bool, crossbow::string>;
-    using arguments = void;
+    using arguments = uint64_t;  // subscriberNum
 };
 
 struct Event

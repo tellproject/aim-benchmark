@@ -23,6 +23,7 @@
 #include <string>
 #include <thread>
 #include <boost/asio.hpp>
+#include <crossbow/allocator.hpp>
 #include <crossbow/program_options.hpp>
 #include <crossbow/logger.hpp>
 
@@ -33,6 +34,9 @@
 #include "CreateSchemaKudu.hpp"
 #include "PopulateKudu.hpp"
 #include "TransactionsKudu.hpp"
+
+#include "server/rta/dimension_schema.h"
+#include "server/sep/schema_and_index_builder.h"
 
 using namespace crossbow::program_options;
 using namespace boost::asio;
@@ -54,13 +58,15 @@ class Connection {
     Session mSession;
     Populator mPopulator;
     Transactions mTxs;
+    const AIMSchema &mAimSchema;
     int mPartitions;
 public:
-    Connection(boost::asio::io_service& service, kudu::client::KuduClient& client, int partitions)
+    Connection(boost::asio::io_service& service, kudu::client::KuduClient& client, const AIMSchema &aimSchema, int partitions)
         : mSocket(service)
         , mServer(*this, mSocket)
         , mSession(client.NewSession())
-        , mTxs(numWarehouses)
+        , mTxs(aimSchema)
+        , mAimSchema(aimSchema)
         , mPartitions(partitions)
     {
         assertOk(mSession->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
@@ -77,80 +83,175 @@ public:
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::EXIT, void>::type
-    execute(const Callback callback) {
-        mServer.quit();
-        callback();
+    typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        LOG_ERROR("PROCESS_EVENT must be called over udp");
+        std::terminate();
     }
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
-    execute(std::tuple<int16_t, bool> args, const Callback& callback) {
-        std::cout << "CreateSchema(" << std::get<0>(args) << ", " << std::get<1>(args) << ")";
+    execute(uint64_t args, const Callback callback) {
+        std::cout << "CreateSchema";
         std::cout.flush();
-        createSchema(*mSession, std::get<0>(args), mPartitions, std::get<1>(args));
+        createSchema(*mSession, int64_t(args), mAimSchema, mPartitions);
         callback(std::make_tuple(true, crossbow::string()));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::POPULATE_WAREHOUSE, void>::type
-    execute(std::tuple<int16_t, bool> args, const Callback& callback) {
-        mPopulator.populateWarehouse(*mSession, std::get<0>(args), std::get<1>(args));
+    typename std::enable_if<C == Command::POPULATE_TABLE, void>::type
+    execute(std::tuple<uint64_t /*lowestSubscriberNum*/, uint64_t /* highestSubscriberNum */> args, const Callback& callback) {
+        mPopulator.populateWideTable(*mSession, mAimSchema, std::get<0>(args), std::get<1>(args));
         callback(std::make_tuple(true, crossbow::string()));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::POPULATE_DIM_TABLES, void>::type
-    execute(bool args, const Callback& callback) {
-        mPopulator.populateDimTables(*mSession, args);
-        callback(std::make_tuple(true, crossbow::string()));
+    typename std::enable_if<C == Command::Q1, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        callback(mTxs.q1Transaction(*mSession, args));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::NEW_ORDER, void>::type
+    typename std::enable_if<C == Command::Q2, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        callback(mTxs.newOrderTransaction(*mSession, args));
+        callback(mTxs.q2Transaction(*mSession, args));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::PAYMENT, void>::type
-    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        callback(mTxs.payment(*mSession, args));
+    typename std::enable_if<C == Command::Q3, void>::type
+    execute(const Callback& callback) {
+       callback(mTxs.q3Transaction(*mSession));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::ORDER_STATUS, void>::type
+    typename std::enable_if<C == Command::Q4, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        callback(mTxs.orderStatus(*mSession, args));
+        callback(mTxs.q4Transaction(*mSession, args));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::DELIVERY, void>::type
+    typename std::enable_if<C == Command::Q5, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        callback(mTxs.delivery(*mSession, args));
+        callback(mTxs.q5Transaction(*mSession, args));
     }
 
     template<Command C, class Callback>
-    typename std::enable_if<C == Command::STOCK_LEVEL, void>::type
+    typename std::enable_if<C == Command::Q6, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
-        callback(mTxs.stockLevel(*mSession, args));
+        callback(mTxs.q6Transaction(*mSession, args));
+    }
+
+    template<Command C, class Callback>
+    typename std::enable_if<C == Command::Q7, void>::type
+    execute(const typename Signature<C>::arguments& args, const Callback& callback) {
+        callback(mTxs.q7Transaction(*mSession, args));
     }
 };
 
-void accept(io_service& service, ip::tcp::acceptor& a, kudu::client::KuduClient& client, int16_t numWarehouses, int partitions) {
-    auto conn = new Connection(service, client, numWarehouses, partitions);
-    a.async_accept(conn->socket(), [&, conn, numWarehouses, partitions](const boost::system::error_code& err) {
+void accept(io_service& service, ip::tcp::acceptor& a, kudu::client::KuduClient& client,
+        const AIMSchema &aimSchema, int partitions) {
+    auto conn = new Connection(service, client, aimSchema, partitions);
+    a.async_accept(conn->socket(), [&, conn, aimSchema, partitions](const boost::system::error_code& err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
             return;
         }
         conn->run();
-        accept(service, a, client, numWarehouses, partitions);
+        accept(service, a, client, aimSchema, partitions);
     });
 }
 
-}
+thread_local unsigned UDP_THREAD_ID;
+
+class UdpServer {
+    boost::asio::ip::udp::socket mSocket;
+    Session mSession;
+    Transactions mTxs;
+    size_t mBufferSize;
+    std::unique_ptr<char[]> mBuffer;
+    unsigned mEventBatchSize;
+    std::vector<std::vector<Event>> mEventBatches;
+
+public:
+    UdpServer(boost::asio::io_service& service,
+              kudu::client::KuduClient& client,
+              size_t numThreads,
+              unsigned eventBatchSize,
+              const AIMSchema &aimSchema)
+        : mSocket(service)
+        , mSession(client.NewSession())
+        , mTxs(aimSchema)
+        , mBufferSize(1024)
+        , mBuffer(new char[mBufferSize])
+        , mEventBatchSize(eventBatchSize)
+        , mEventBatches(numThreads, std::vector<Event>())
+    {
+        for (auto& v : mEventBatches) {
+            v.reserve(mEventBatchSize);
+        }
+    }
+
+    ~UdpServer() = default;
+
+    void bind(const std::string& host, const std::string& port) {
+        using namespace boost::asio;
+        mSocket.open(ip::udp::v4());
+        ip::udp::resolver res(mSocket.get_io_service());
+        ip::udp::resolver::iterator iter;
+        if (host == "") {
+            iter = res.resolve(ip::udp::resolver::query(port));
+        } else {
+            iter = res.resolve(ip::udp::resolver::query(host, port));
+        }
+        decltype(iter) end;
+        for (; iter != end; ++iter) {
+            boost::system::error_code err;
+            auto endpoint = iter->endpoint();
+            mSocket.bind(endpoint, err);
+            if (err) {
+                LOG_WARN("Bind attempt failed " + err.message());
+                continue;
+            }
+            break;
+        }
+        if (!mSocket.is_open()) {
+            LOG_ERROR("Could not bind");
+            std::terminate();
+        }
+    }
+
+    void run() {
+        using err_code = boost::system::error_code;
+        mSocket.async_receive(boost::asio::buffer(mBuffer.get(), mBufferSize), [this](const err_code& ec, size_t bt){
+            if (ec) {
+                LOG_ERROR(ec.message());
+                run();
+                return;
+            }
+    #ifndef NDEBUG
+            size_t reqSize = *reinterpret_cast<size_t*>(mBuffer.get());
+            assert(reqSize == bt);
+            auto cmd = *reinterpret_cast<Command*>(mBuffer.get() + sizeof(size_t));
+            assert (cmd == Command::PROCESS_EVENT);
+    #endif
+            crossbow::deserializer des(reinterpret_cast<uint8_t*>(mBuffer.get() + sizeof(size_t) + sizeof(Command)));
+            Event ev;
+            des & ev;
+            auto &eventBatch = mEventBatches[UDP_THREAD_ID];
+            if (eventBatch.size() >= mEventBatchSize) {
+                std::vector<Event> events;
+                events.swap(eventBatch);
+                mTxs.processEvent(*mSession, events);
+                eventBatch.reserve(mEventBatchSize);
+            }
+            eventBatch.push_back(ev);
+            run();
+        });
+    }
+};
+
+} // namespace aim
 
 int main(int argc, const char** argv) {
     bool help = false;
@@ -159,13 +260,9 @@ int main(int argc, const char** argv) {
     std::string udpPort("8714");
     std::string logLevel("DEBUG");
     std::string schemaFile("");
-    crossbow::string commitManager;
     crossbow::string storageNodes;
     unsigned eventBatchSize = 100u;
-    unsigned networkThreads = 1u;
-    unsigned processingThreads = 2u;
-    unsigned scanBlockNumber = 1;
-    unsigned scanBlockSize = 0x6400000;
+    unsigned numThreads = 4u;
     int partitions = -1;
     auto opts = create_options("aim_server",
             value<'h'>("help", &help, tag::description{"print help"}),
@@ -174,14 +271,10 @@ int main(int argc, const char** argv) {
             value<'u'>("udp-port", &udpPort, tag::description{"Udp-port to receive events"}),
             value<'P'>("partitions", &partitions, tag::description{"Number of partitions per table"}),
             value<'l'>("log-level", &logLevel, tag::description{"The log level"}),
-            value<'c'>("commit-manager", &commitManager, tag::description{"Address to the commit manager"}),
             value<'s'>("storage-nodes", &storageNodes, tag::description{"Semicolon-separated list of storage node addresses"}),
             value<'f'>("schema-file", &schemaFile, tag::description{"path to SqLite file that stores AIM schema"}),
             value<'b'>("batch-size", &eventBatchSize, tag::description{"size of event batches"}),
-            value<'n'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"}),
-            value<'t'>("processing-threads", &processingThreads, tag::description{"number of (Infiniband) processing threads"}),
-            value<'M'>("block-number", &scanBlockNumber, tag::description{"number of scan memory blocks"}),
-            value<'m'>("block-size", &scanBlockSize, tag::description{"size of scan memory blocks"})
+            value<'n'>("network-threads", &numThreads, tag::description{"number of (TCP) networking threads"})
             );
     try {
         parse(opts, argc, argv);
@@ -211,13 +304,6 @@ int main(int argc, const char** argv) {
     crossbow::allocator::init();
 
     crossbow::logger::logger->config.level = crossbow::logger::logLevelFromString(logLevel);
-    tell::store::ClientConfig config;
-    config.numNetworkThreads = processingThreads;
-    config.commitManager = config.parseCommitManager(commitManager);
-    config.tellStore = config.parseTellStore(storageNodes);
-    tell::db::ClientManager<aim::Context> clientManager(config);
-    clientManager.allocateScanMemory(
-            config.tellStore.size() * processingThreads * scanBlockNumber, scanBlockSize);
     try {
         io_service service;
         boost::asio::io_service::work work(service);
@@ -256,9 +342,14 @@ int main(int argc, const char** argv) {
         std::tr1::shared_ptr<kudu::client::KuduClient> client;
         aim::assertOk(clientBuilder.Build(&client));
         // we do not need to delete this object, it will delete itself
-        aim::accept(service, a, *client, numWarehouses, partitions);
+        aim::accept(service, a, *client, aimSchema, partitions);
+
+        aim::UdpServer udpServer(service, *client, numThreads, eventBatchSize, aimSchema);
+        udpServer.bind(host, udpPort);
+        udpServer.run();
         std::vector<std::thread> threads;
         for (unsigned i = 0; i < numThreads; ++i) {
+            UDP_THREAD_ID = i;
             threads.emplace_back([&service](){
                     service.run();
             });
