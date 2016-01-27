@@ -59,10 +59,10 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
 
         selectionWriter.write<uint16_t>(context.regionRegion);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.advance(2);
+        selectionWriter.set(0, 2);
         auto valuePtr = selectionWriter.data();
         selectionWriter.write<int32_t>(0);                // we are going to vary this
 

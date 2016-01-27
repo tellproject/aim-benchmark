@@ -59,10 +59,10 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
             selectionWriter.write<uint16_t>(context.regionCountry);
             selectionWriter.write<uint16_t>(0x1u);
-            selectionWriter.advance(4);
+            selectionWriter.set(0, 4);
             selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
             selectionWriter.write<uint8_t>(0x0u);
-            selectionWriter.advance(2);
+            selectionWriter.set(0, 2);
             selectionWriter.write<int32_t>(in.country_id);
 
             // sort aggregation attributes
@@ -121,17 +121,18 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
             crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
             selectionWriter.write<uint32_t>(0x1u);
-            selectionWriter.write<uint32_t>(0x1u);
+            selectionWriter.write<uint16_t>(0x1u);
+            selectionWriter.write<uint16_t>(0x0u);
             selectionWriter.write<uint32_t>(0x0u);
             selectionWriter.write<uint32_t>(0x0u);
 
             auto columnPtr = selectionWriter.data();
             selectionWriter.write<uint16_t>(context.durMaxLocalWeek);   // we are going to vary this
             selectionWriter.write<uint16_t>(0x1u);
-            selectionWriter.align(sizeof(uint64_t));
+            selectionWriter.set(0, 4);
             selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
             selectionWriter.write<uint8_t>(0x0u);
-            selectionWriter.align(sizeof(uint32_t));
+            selectionWriter.set(0, 2);
             auto valuePtr = selectionWriter.data();
             selectionWriter.write<int32_t>(result.max_local_week);      // we are going to vary this
 

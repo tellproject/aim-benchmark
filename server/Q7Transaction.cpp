@@ -59,10 +59,10 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
 
         selectionWriter.write<uint16_t>(context.valueTypeId);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.align(2);
+        selectionWriter.set(0, 2);
         selectionWriter.write<int32_t>(in.subscriber_value_type);
 
         // sort aggregation attributes
