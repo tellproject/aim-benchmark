@@ -55,11 +55,11 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
 
         selectionWriter.write<uint16_t>(context.callsSumLocalWeek);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
 
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.advance(2);
+        selectionWriter.set(0, 2);
         selectionWriter.write<int32_t>(in.alpha);
 
         uint32_t aggregationLength = 8;
