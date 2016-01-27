@@ -71,6 +71,7 @@ struct Context {
     id_t regionCountry;
     id_t regionRegion;
 
+    id_t categoryId;
     id_t valueTypeId;
 
 };

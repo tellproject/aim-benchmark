@@ -47,7 +47,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         // 5 different unique values
         // aggregate them all in separate scans
 
-        uint32_t selectionLength = 32;
+        uint32_t selectionLength = 64;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
@@ -65,6 +65,24 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         selectionWriter.advance(2);
         auto valuePtr = selectionWriter.data();
         selectionWriter.write<int32_t>(0);                // we are going to vary this
+
+        selectionWriter.write<uint16_t>(context.subscriptionTypeId);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.advance(4);
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.advance(2);
+        selectionWriter.write<int16_t>(in.sub_type);
+        selectionWriter.advance(2);
+
+        selectionWriter.write<uint16_t>(context.categoryId);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.advance(4);
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.advance(2);
+        selectionWriter.write<int16_t>(in.sub_category);
+        selectionWriter.advance(2);
 
         // sort aggregation attributes
         std::map<id_t, std::tuple<AggregationType, FieldType,

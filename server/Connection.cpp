@@ -215,6 +215,7 @@ public:
             context.regionCountry = tellSchema.idOf("region_country_id");
             context.regionRegion = tellSchema.idOf("region_region_id");
 
+            context.categoryId = tellSchema.idOf("category_id");
             context.valueTypeId = tellSchema.idOf("value_type_id");
 
             context.isInitialized = true;
