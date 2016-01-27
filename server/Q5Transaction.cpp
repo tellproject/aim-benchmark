@@ -51,8 +51,8 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-        selectionWriter.write<uint32_t>(0x1u);
-        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x3u);
+        selectionWriter.write<uint16_t>(0x3u);
         selectionWriter.write<uint16_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
@@ -71,18 +71,16 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.set(0, 2);
         selectionWriter.write<int16_t>(in.sub_type);
-        selectionWriter.set(0, 2);
+        selectionWriter.set(0, 4);
 
         selectionWriter.write<uint16_t>(context.categoryId);
         selectionWriter.write<uint16_t>(0x1u);
         selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.set(0, 2);
         selectionWriter.write<int16_t>(in.sub_category);
-        selectionWriter.set(0, 2);
+        selectionWriter.set(0, 4);
 
         // sort aggregation attributes
         std::map<id_t, std::tuple<AggregationType, FieldType,
