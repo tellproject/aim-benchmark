@@ -70,7 +70,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         selectionWriter.write<uint16_t>(0x1u);
         selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
-        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.write<uint8_t>(0x1u);
         selectionWriter.write<int16_t>(in.sub_type);
         selectionWriter.set(0, 4);
 
@@ -78,7 +78,7 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         selectionWriter.write<uint16_t>(0x1u);
         selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
-        selectionWriter.write<uint8_t>(0x0u);
+        selectionWriter.write<uint8_t>(0x2u);
         selectionWriter.write<int16_t>(in.sub_category);
         selectionWriter.set(0, 4);
 
