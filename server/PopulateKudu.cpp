@@ -62,6 +62,10 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
         auto ins = table->NewInsert();
         auto row = ins->mutable_row();
 
+        // subscriber-id and last-updated
+        assertOk(row->SetInt64("subscriber_id", static_cast<int64_t>(i)));
+        assertOk(row->SetInt64("last_updated", now()));
+
         // insert all standard attributes
         for (auto kvPair: tuple) {
             std::string fieldName(kvPair.first.c_str(), kvPair.first.size());
@@ -81,10 +85,6 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
                 throw std::runtime_error(msg);
             }
         }
-
-        // subscriber-id and last-updated
-        assertOk(row->SetInt64("subscriber_id", static_cast<int64_t>(i)));
-        assertOk(row->SetInt64("last_updated", now()));
 
         // subscription type
         int16_t subscriptionId = rand.randomWithin<int16_t>(

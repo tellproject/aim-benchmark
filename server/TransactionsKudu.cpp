@@ -22,7 +22,11 @@
  */
 #include "TransactionsKudu.hpp"
 #include "kudu.hpp"
+#include <kudu/util/status.h>
+#include <kudu/client/client.h>
 #include <kudu/client/row_result.h>
+
+#include <common/dimension-tables-unique-values.h>
 
 #include <boost/unordered_map.hpp>
 
@@ -72,13 +76,14 @@ struct CreateValue {
 template<class... P>
 struct PredicateAdder;
 
-template<class Key, class Value, class... Tail>
-struct PredicateAdder<Key, Value, Tail...> {
+template<class Key, class Value, class CompOp, class... Tail>
+struct PredicateAdder<Key, Value, CompOp, Tail...> {
     PredicateAdder<Tail...> tail;
     CreateValue<Value> creator;
 
-    void operator() (KuduTable& table, KuduScanner& scanner, const Key& key, const Value& value, const Tail&... rest) {
-        assertOk(scanner.AddConjunctPredicate(table.NewComparisonPredicate(key, KuduPredicate::EQUAL, creator.template create<Value>(value))));
+    void operator() (KuduTable& table, KuduScanner& scanner, const Key& key,
+            const Value& value, const CompOp& predicate, const Tail&... rest) {
+        assertOk(scanner.AddConjunctPredicate(table.NewComparisonPredicate(key, predicate, creator.template create<Value>(value))));
         tail(table, scanner, rest...);
     }
 };
@@ -95,12 +100,24 @@ void addPredicates(KuduTable& table, KuduScanner& scanner, const Args&... args) 
     adder(table, scanner, args...);
 }
 
+// opens a scan an puts it in the scanner list, use an empty projection-vector for getting everything
 template<class... Args>
-KuduRowResult get(KuduTable& table, ScannerList& scanners, const Args&... args) {
+KuduScanner &openScan(KuduTable& table, ScannerList& scanners, const std::vector<std::string> &projectionColumns, const Args&... args) {
     scanners.emplace_back(new KuduScanner(&table));
     auto& scanner = *scanners.back();
     addPredicates(table, scanner, args...);
+    if (projectionColumns.size() > 0) {
+        scanner.SetProjectedColumnNames(projectionColumns);
+    }
     assertOk(scanner.Open());
+    return scanner;
+}
+
+// simple get request (retrieves one tuple)
+template<class... Args>
+KuduRowResult get(KuduTable& table, ScannerList& scanners, const Args&... args) {
+    std::vector<std::string> emptyVec;
+    auto& scanner = openScan(table, scanners, emptyVec, args...);
     assert(scanner.HasMoreRows());
     std::vector<KuduRowResult> rows;
     assertOk(scanner.NextBatch(&rows));
@@ -131,6 +148,10 @@ void set(KuduWriteOperation& upd, const Slice& slice, const Slice& str) {
     assertOk(upd.mutable_row()->SetString(slice, str));
 }
 
+void getField(KuduRowResult &row, const std::string &columnName, int16_t &result) {
+    assertOk(row.GetInt16(columnName, &result));
+}
+
 void getField(KuduRowResult &row, const std::string &columnName, int32_t &result) {
     assertOk(row.GetInt32(columnName, &result));
 }
@@ -143,7 +164,7 @@ void getField(KuduRowResult &row, const std::string &columnName, double &result)
     assertOk(row.GetDouble(columnName, &result));
 }
 
-using namespace aim;
+namespace aim {
 
 template <typename T, typename Fun>
 void updateTuple (Fun fun, const std::string &columName,
@@ -155,12 +176,11 @@ void updateTuple (Fun fun, const std::string &columName,
     set(upd, columName, f.template value<T>());
 }
 
-void Transactions::processEvent(kudu::client::KuduSession& session,
-            Context &context, std::vector<Event> &events) {
+void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<Event> &events) {
 
     try {
         std::tr1::shared_ptr<KuduTable> wTable;
-        session.client()->OpenTable("wt", &wTable);
+        assertOk(session.client()->OpenTable("wt", &wTable));
 
         ScannerList scanners;
         std::vector<KuduRowResult> oldTuples;
@@ -169,7 +189,7 @@ void Transactions::processEvent(kudu::client::KuduSession& session,
         // get futures in reverse order
         for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
             oldTuples.emplace_back(
-                        get(*wTable, scanners, "subscriber_id", iter->caller_id));
+                    get(*wTable, scanners, subscriberId, iter->caller_id, KuduPredicate::EQUAL));
         }
 
         auto eventIter = events.begin();
@@ -179,12 +199,12 @@ void Transactions::processEvent(kudu::client::KuduSession& session,
 
             auto& oldTuple = *iter;
             Timestamp ts;
-            assertOk(oldTuple.GetInt64("last_updated", &ts));
+            assertOk(oldTuple.GetInt64(timeStamp, &ts));
 
             std::unique_ptr<KuduWriteOperation> upd(wTable->NewUpdate());
 
-            for (auto &pair: context.tellIDToAIMSchemaEntry) {
-                auto &schemaEntry = pair.second;
+            for (uint i = 0; i < mAimSchema.numOfEntries(); ++i) {
+                auto &schemaEntry = mAimSchema[i];
                 std::function<tell::db::Field(tell::db::Field& ,Timestamp, const Event&)> fun;
 
                 using namespace std::placeholders;
@@ -215,6 +235,244 @@ void Transactions::processEvent(kudu::client::KuduSession& session,
         LOG_ERROR("FATAL: Connection aborted for event, this must not happen, ex = %1%", ex.what());
         std::terminate();
     }
-
-    //TODO: continue with other transactions here...
 }
+
+Q1Out Transactions::q1Transaction(KuduSession &session, const Q1In &in)
+{
+    Q1Out result;
+
+    try {
+        std::tr1::shared_ptr<KuduTable> wTable;
+        assertOk(session.client()->OpenTable("wt", &wTable));
+
+        std::vector<std::string> projection;
+        projection.push_back(durSumAllWeek);
+
+        ScannerList scanners;
+        KuduScanBatch resultBatch;
+        KuduScanner &scanner = openScan(*wTable, scanners, projection, callsSumLocalWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL);
+        int64_t sum = 0, cnt = 0, val;
+        while (scanner.HasMoreRows()) {
+            assertOk(scanner.NextBatch(&resultBatch));
+            for (KuduScanBatch::RowPtr row : resultBatch) {
+                getField(row, durSumAllWeek, val);
+                sum += val;
+                cnt++;
+            }
+        }
+
+        result.avg = sum;
+        if (cnt != 0)   // don-t divide by zero, report 0!
+            result.avg /= cnt;
+        result.success = true;
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
+}
+
+Q2Out Transactions::q2Transaction(KuduSession &session, const Q2In &in)
+{
+    Q2Out result;
+
+    try {
+        std::tr1::shared_ptr<KuduTable> wTable;
+        assertOk(session.client()->OpenTable("wt", &wTable));
+
+        std::vector<std::string> projection;
+        projection.push_back(costMaxAllWeek);
+
+        ScannerList scanners;
+        KuduScanBatch resultBatch;
+        KuduScanner &scanner = openScan(*wTable, scanners, projection, callsSumAllWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL);
+        double cost;
+        result.max = std::numeric_limits<double>::min();
+        while (scanner.HasMoreRows()) {
+            assertOk(scanner.NextBatch(&resultBatch));
+            for (KuduScanBatch::RowPtr row : resultBatch) {
+                getField(row, costMaxAllWeek, cost);
+                result.max = std::max(result.max, cost);
+            }
+        }
+        result.success = true;
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
+}
+
+Q3Out Transactions::q3Transaction(KuduSession &session)
+{
+    Q3Out result;
+
+    try {
+        std::tr1::shared_ptr<KuduTable> wTable;
+        assertOk(session.client()->OpenTable("wt", &wTable));
+
+        std::vector<std::string> projection;
+        projection.push_back(callsSumAllWeek);
+        projection.push_back(durSumAllWeek);
+        projection.push_back(costSumAllWeek);
+
+        ScannerList scanners;
+        KuduScanBatch resultBatch;
+        KuduScanner &scanner = openScan(*wTable, scanners, projection);
+
+        // callsSumAllWeek -> durSumAllWeek.sum, costSumAllWeek.sum
+        boost::unordered_map<int32_t, std::pair<int64_t, double>> map;
+
+        int32_t calls;
+        int64_t dur;
+        double cost;
+        while (scanner.HasMoreRows()) {
+            assertOk(scanner.NextBatch(&resultBatch));
+            for (KuduScanBatch::RowPtr row : resultBatch) {
+                getField(row, callsSumAllWeek, calls);
+                getField(row, durSumAllWeek, dur);
+                getField(row, costSumAllWeek, cost);
+            }
+            auto it = map.find(calls);
+            if (it == map.end())
+                it = map.emplace(std::make_pair(calls, std::make_pair(0, 0.0))).first;
+            (it->second.first) += dur;
+            (it->second.second) += cost;
+        }
+        result.results.reserve(map.size());
+        for (auto &entry: map) {
+            Q3Out::Q3Tuple q3Tuple;
+            q3Tuple.number_of_calls_this_week = entry.first;
+            q3Tuple.cost_ratio = entry.second.second
+                    / entry.second.first;
+            result.results.push_back(std::move(q3Tuple));
+        }
+        result.success = true;
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
+}
+
+Q4Out Transactions::q4Transaction(KuduSession &session, const Q4In &in)
+{
+    Q4Out result;
+
+    try {
+        std::tr1::shared_ptr<KuduTable> wTable;
+        assertOk(session.client()->OpenTable("wt", &wTable));
+
+        std::vector<std::string> projection;
+        projection.push_back(regionCity);
+        projection.push_back(callsSumLocalWeek);
+        projection.push_back(durSumLocalWeek);
+
+        ScannerList scanners;
+        KuduScanBatch resultBatch;
+        KuduScanner &scanner = openScan(*wTable, scanners, projection,
+                callsSumLocalWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL,
+                durSumLocalWeek, in.beta+1, KuduPredicate::GREATER_EQUAL);
+
+        // city-id -> (callsSumLocalWeek.cnt, callsSumLocalWeek.sum, durSumLocalWeek.sum)
+        boost::unordered_map<int16_t, std::tuple<int32_t, int32_t, int64_t>> map;
+
+        int16_t city_id;
+        int32_t calls;
+        int64_t dur;
+        while (scanner.HasMoreRows()) {
+            assertOk(scanner.NextBatch(&resultBatch));
+            for (KuduScanBatch::RowPtr row : resultBatch) {
+                getField(row, regionCity, city_id);
+                getField(row, callsSumLocalWeek, calls);
+                getField(row, durSumLocalWeek, dur);
+            }
+            auto it = map.find(city_id);
+            if (it == map.end())
+                it = map.emplace(std::make_pair(city_id, std::make_tuple(0, 0, 0))).first;
+            (std::get<0>(it->second)) ++;
+            (std::get<1>(it->second)) += calls;
+            (std::get<2>(it->second)) += dur;
+        }
+        result.results.reserve(map.size());
+        for (auto &entry: map) {
+            Q4Out::Q4Tuple q4Tuple;
+            q4Tuple.city_name = region_unique_city[entry.first];
+            q4Tuple.avg_num_local_calls_week =
+                    static_cast<double>(std::get<1>(entry.second))
+                            / std::get<0>(entry.second);
+            q4Tuple.sum_duration_local_calls_week = std::get<2>(entry.second);
+            result.results.push_back(std::move(q4Tuple));
+        }
+        result.success = true;
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
+}
+
+Q5Out Transactions::q5Transaction(KuduSession &session, const Q5In &in)
+{
+    Q5Out result;
+
+    try {
+        std::tr1::shared_ptr<KuduTable> wTable;
+        assertOk(session.client()->OpenTable("wt", &wTable));
+
+        std::vector<std::string> projection;
+        projection.push_back(regionRegion);
+        projection.push_back(costSumLocalWeek);
+        projection.push_back(costSumDistantWeek);
+
+        ScannerList scanners;
+        KuduScanBatch resultBatch;
+        KuduScanner &scanner = openScan(*wTable, scanners, projection,
+                subscriptionTypeId, in.sub_type, KuduPredicate::EQUAL,
+                categoryId, in.sub_category, KuduPredicate::EQUAL);
+
+        // region-id -> (costSumLocalWeek.sum, costSumDinstantWeek.sum)
+        boost::unordered_map<int16_t, std::pair<int64_t, int64_t>> map;
+
+        int16_t region_id;
+        double local_cost, dist_cost;
+        while (scanner.HasMoreRows()) {
+            assertOk(scanner.NextBatch(&resultBatch));
+            for (KuduScanBatch::RowPtr row : resultBatch) {
+                getField(row, regionRegion, region_id);
+                getField(row, costSumLocalWeek, local_cost);
+                getField(row, costSumDistantWeek, dist_cost);
+            }
+            auto it = map.find(region_id);
+            if (it == map.end())
+                it = map.emplace(std::make_pair(region_id, std::make_pair(0.0, 0.0))).first;
+            (it->second.first) += local_cost;
+            (it->second.second) += dist_cost;
+        }
+        result.results.reserve(map.size());
+        for (auto &entry: map) {
+            Q5Out::Q5Tuple q5Tuple;
+            q5Tuple.region_name = region_unique_region[entry.first];
+            q5Tuple.sum_cost_local_calls_week = entry.second.first;
+            q5Tuple.sum_cost_longdistance_calls_week = entry.second.second;
+            result.results.push_back(std::move(q5Tuple));
+        }
+        result.success = true;
+    } catch (std::exception& ex) {
+        result.success = false;
+        result.error = ex.what();
+    }
+
+    return result;
+}
+
+Q6Out Transactions::q6Transaction(KuduSession &session, const Q6In &in)
+{
+    //TODO: continue here...
+}
+
+} // namespace aim

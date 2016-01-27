@@ -246,7 +246,7 @@ struct Signature<Command::Q4> {
 /*
  * Q5:
  * SELECT region.name, sum(total cost of local calls this week) as local,
- *        sum(total cost of long distance calls) as long_distance
+ *        sum(total cost of long distance calls this week) as long_distance
  * FROM VWT, SubscriptionType t, SubscriberCategory c, RegionInfo r
  * WHERE t.type = subscriptionType AND c.type = subscriberCategory AND
  *       VWT.subscription-type = t.id AND VWT.category = c.id AND

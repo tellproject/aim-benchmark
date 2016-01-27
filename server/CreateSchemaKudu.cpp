@@ -74,10 +74,6 @@ std::vector<const kudu::KuduPartialRow*> addSplitsSubscribers(int64_t subscriber
     return splits;
 }
 
-std::vector<const kudu::KuduPartialRow*> noSharding(kudu::client::KuduSchema&) {
-    return {};
-}
-
 template<class Fun>
 void createTable(kudu::client::KuduSession& session, kudu::client::KuduSchemaBuilder& schemaBuilder, const std::string& name, const std::vector<std::string>& rangePartitionColumns, Fun generateSplits) {
     std::unique_ptr<kudu::client::KuduTableCreator> tableCreator(session.client()->NewTableCreator());
@@ -93,8 +89,21 @@ void createTable(kudu::client::KuduSession& session, kudu::client::KuduSchemaBui
     tableCreator.reset(nullptr);
 }
 
-} // anonymous namespace
+FieldType fromTellStoreFieldType(tell::store::FieldType type) {
+    switch (type) {
+    case tell::store::FieldType::BIGINT:
+        return FieldType::BIGINT;
+    case tell::store::FieldType::INT:
+        return FieldType::INT;
+    case tell::store::FieldType::DOUBLE:
+        return FieldType::DOUBLE;
+    default:
+        assert(false);
+        // AIM Schema is always one of the three above!
+    }
+}
 
+} // anonymous namespace
 
 void createSchema(kudu::client::KuduSession& session, const int64_t subscriberNum, const AIMSchema &aimSchema, int partitions)
 {
@@ -105,7 +114,8 @@ void createSchema(kudu::client::KuduSession& session, const int64_t subscriberNu
 
     // wide table columns
     for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i)
-        addField(schemaBuilder, aimSchema[i].type(), aimSchema[i].name(), true);
+        addField(schemaBuilder, fromTellStoreFieldType(aimSchema[i].type()),
+                std::string(aimSchema[i].name().c_str(), aimSchema[i].name().size()), true);
 
     // dimension columns
     addField(schemaBuilder, FieldType::SMALLINT, "subscription_type_id", true);
@@ -124,6 +134,7 @@ void createSchema(kudu::client::KuduSession& session, const int64_t subscriberNu
     addField(schemaBuilder, FieldType::SMALLINT, "value_type_threshold_id", true);
 
     schemaBuilder.SetPrimaryKey({"subscriber_id"});
+    using namespace std::placeholders;
     createTable(session, schemaBuilder, "wt", {"subscriber_id"}, std::bind(&addSplitsSubscribers, subscriberNum, partitions, _1));
 }
 
