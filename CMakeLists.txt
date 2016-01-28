@@ -9,6 +9,10 @@ find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
 find_package(Jemalloc REQUIRED)
 
+# used for newer gcc versions that clash with Kudu
+# --> make sure we compile old ABI
+add_definitions( -D_GLIBCXX_USE_CXX11_ABI=0 )
+
 set(COMMON_SRC
     common/Protocol.cpp
     common/Util.cpp
@@ -90,7 +94,7 @@ set(RTA_CLIENT_SRC
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BINARY_DIR}/meta_db.db COPYONLY)
 
 add_executable(aim_server ${SERVER_SRC})
-target_link_libraries(aim_server PRIVATE aim_common dl)
+target_link_libraries(aim_server PRIVATE aim_common telldb dl)
 target_link_libraries(aim_server PUBLIC crossbow_allocator)
 target_include_directories(aim_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(aim_server PRIVATE ${Jemalloc_LIBRARIES})
@@ -107,7 +111,7 @@ target_link_libraries(rta_client PRIVATE ${Jemalloc_LIBRARIES})
 
 set(USE_KUDU OFF CACHE BOOL "Build AIM for Kudu")
 if(${USE_KUDU})
-    set(kuduClient_DIR "/mnt/local/tell/kudu_install/share/kuduClient/cmake")
+    set(kuduClient_DIR "/usr/local/share/kuduClient/cmake")
     find_package(kuduClient REQUIRED)
     find_package(Threads)
     message(STATUS "Kudu header found at ${KUDU_CLIENT_INCLUDE_DIR}")

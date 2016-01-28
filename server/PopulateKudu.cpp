@@ -80,9 +80,8 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
                 assertOk(row->SetDouble(fieldName, kvPair.second.value<double>()));
                 break;
             default:
-                const char * msg = "Error from Kudu Popluation: non-expected field type %1% for AIM wide-table attribute";
-                LOG_ERROR(msg, kvPair.second.type());
-                throw std::runtime_error(msg);
+                LOG_ERROR("Error from Kudu Popluation: non-expected field type for AIM wide-table attribute");
+                return;
             }
         }
 
