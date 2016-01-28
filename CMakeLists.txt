@@ -39,23 +39,7 @@ target_link_libraries(aim_common PUBLIC ${Boost_LIBRARIES})
 target_link_libraries(aim_common PUBLIC crossbow_logger)
 target_link_libraries(aim_common PUBLIC telldb)
 
-set(SERVER_SRC
-    server/main.cpp
-    server/Connection.cpp
-    server/Connection.hpp
-    server/AimContext.hpp
-    server/CreateSchema.cpp
-    server/CreateSchema.hpp
-    server/Populate.cpp
-    server/Populate.hpp
-    server/Q1Transaction.cpp
-    server/Q2Transaction.cpp
-    server/Q3Transaction.cpp
-    server/Q4Transaction.cpp
-    server/Q5Transaction.cpp
-    server/Q6Transaction.cpp
-    server/Q7Transaction.cpp
-    server/ProcessEvent.cpp
+set(SERVER_COMMON_SRC
     server/sep/aim_schema.cpp
     server/sep/aim_schema.h
     server/sep/aim_schema_builder.cpp
@@ -77,6 +61,26 @@ set(SERVER_SRC
     server/rta/utils.h
     server/sqlite/sqlite3.h
     server/sqlite/sqlite3.c
+)
+
+set(SERVER_SRC
+    ${SERVER_COMMON_SRC}
+    server/main.cpp
+    server/Connection.cpp
+    server/Connection.hpp
+    server/AimContext.hpp
+    server/CreateSchema.cpp
+    server/CreateSchema.hpp
+    server/Populate.cpp
+    server/Populate.hpp
+    server/Q1Transaction.cpp
+    server/Q2Transaction.cpp
+    server/Q3Transaction.cpp
+    server/Q4Transaction.cpp
+    server/Q5Transaction.cpp
+    server/Q6Transaction.cpp
+    server/Q7Transaction.cpp
+    server/ProcessEvent.cpp
 )
 
 set(SEP_CLIENT_SRC
@@ -117,6 +121,7 @@ if(${USE_KUDU})
     message(STATUS "Kudu header found at ${KUDU_CLIENT_INCLUDE_DIR}")
 
     set(KUDU_SERVER_SRC
+        ${SERVER_COMMON_SRC}
         server/kudu.cpp
         server/CreateSchemaKudu.cpp
         server/PopulateKudu.cpp
@@ -126,7 +131,7 @@ if(${USE_KUDU})
     target_include_directories(aim_kudu PRIVATE ${KUDU_CLIENT_INCLUDE_DIR})
     target_compile_definitions(aim_kudu PRIVATE AIM_KUDU)
     target_link_libraries(aim_kudu PRIVATE kudu_client)
-    target_link_libraries(aim_kudu PRIVATE aim_common)
+    target_link_libraries(aim_kudu PRIVATE aim_common telldb dl)
     target_link_libraries(aim_kudu PUBLIC crossbow_allocator)
     target_link_libraries(aim_kudu PRIVATE ${CMAKE_THREAD_LIBS_INIT})
     target_include_directories(aim_kudu PRIVATE ${Jemalloc_INCLUDE_DIRS})

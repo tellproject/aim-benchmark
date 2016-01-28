@@ -83,6 +83,13 @@ public:
     }
 
     template<Command C, class Callback>
+    typename std::enable_if<C == Command::EXIT, void>::type
+    execute(const Callback callback) {
+        mServer.quit();
+        callback();
+    }
+
+    template<Command C, class Callback>
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         LOG_ERROR("PROCESS_EVENT must be called over udp");

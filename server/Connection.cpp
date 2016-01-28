@@ -125,6 +125,7 @@ void UdpServer::run() {
 }
 
 class CommandImpl {
+    Connection* mConnection;
     server::Server<CommandImpl> mServer;
     boost::asio::io_service& mService;
     tell::db::ClientManager<Context>& mClientManager;
@@ -132,11 +133,13 @@ class CommandImpl {
     const AIMSchema &mAIMSchema;
     Transactions mTransactions;
 public:
-    CommandImpl(boost::asio::ip::tcp::socket& socket,
+    CommandImpl(Connection* connection,
+            boost::asio::ip::tcp::socket& socket,
             boost::asio::io_service& service,
             tell::db::ClientManager<Context>& clientManager,
             const AIMSchema &aimSchema)
-        : mServer(*this, socket)
+        : mConnection(connection)
+        , mServer(*this, socket)
         , mService(service)
         , mClientManager(clientManager)
         , mAIMSchema(aimSchema)
@@ -146,6 +149,10 @@ public:
 
     void run() {
         mServer.run();
+    }
+
+    void close() {
+        delete mConnection;
     }
 
     inline void initializeContextIfNecessary(tell::db::Transaction &tx, Context &context,
@@ -222,6 +229,13 @@ public:
     }
 
     template<Command C, class Callback>
+    typename std::enable_if<C == Command::EXIT, void>::type
+    execute(const Callback callback) {
+        mServer.quit();
+        callback();
+    }
+
+    template<Command C, class Callback>
     typename std::enable_if<C == Command::PROCESS_EVENT, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback& callback) {
         LOG_ERROR("PROCESS_EVENT must be called over udp");
@@ -230,7 +244,7 @@ public:
 
     template<Command C, class Callback>
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
-    execute(const Callback callback) {
+    execute(const typename Signature<C>::arguments& args, const Callback callback) {
         auto transaction = [this, callback](tell::db::Transaction& tx, Context& context){
             bool success;
             crossbow::string msg;
@@ -417,7 +431,7 @@ Connection::Connection(boost::asio::io_service& service,
                 tell::db::ClientManager<Context>& clientManager,
                 const AIMSchema &aimSchema)
     : mSocket(service)
-    , mImpl(new CommandImpl(mSocket, service, clientManager, aimSchema))
+    , mImpl(new CommandImpl(this, mSocket, service, clientManager, aimSchema))
 {}
 
 Connection::~Connection() = default;

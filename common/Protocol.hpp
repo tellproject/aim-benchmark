@@ -58,12 +58,18 @@
 
 namespace aim {
 
-#define COMMANDS (POPULATE_TABLE, CREATE_SCHEMA, PROCESS_EVENT, Q1, Q2, Q3, Q4, Q5, Q6, Q7)
+#define COMMANDS (POPULATE_TABLE, CREATE_SCHEMA, PROCESS_EVENT, Q1, Q2, Q3, Q4, Q5, Q6, Q7, EXIT)
 
 GEN_COMMANDS(Command, COMMANDS);
 
 template<Command C>
 struct Signature;
+
+template<>
+struct Signature<Command::EXIT> {
+    using result = void;
+    using arguments = void;
+};
 
 template<>
 struct Signature<Command::POPULATE_TABLE> {
@@ -450,10 +456,7 @@ public:
     template<class Callback, class Result>
     typename std::enable_if<!std::is_void<Result>::value, void>::type
     readResponse(const Callback& callback, size_t bytes_read = 0) {
-        size_t respSize = std::numeric_limits<uint64_t>::max();
-        if (bytes_read >= 8) {
-            respSize =  *reinterpret_cast<size_t*>(mCurrentRequest.get());
-        }
+        auto respSize = *reinterpret_cast<size_t*>(mCurrentRequest.get());
         if (bytes_read >= 8 && respSize == bytes_read) {
             // response read
             Result res;
@@ -482,10 +485,6 @@ public:
     typename std::enable_if<std::is_void<Res>::value, void>::type
     error(const boost::system::error_code& ec, const Callback& callback) {
         callback(ec);
-
-        std::cerr << ec.message() << std::endl;
-        mSocket.close();
-        delete this;
     }
 
     template<class Res, class Callback>
@@ -493,10 +492,6 @@ public:
     error(const boost::system::error_code& ec, const Callback& callback) {
         Res res;
         callback(ec, res);
-
-        std::cerr << ec.message() << std::endl;
-        mSocket.close();
-        delete this;
     }
 
     template<Command C, class Callback, class... Args>
@@ -529,7 +524,6 @@ public:
                         readResponse<Callback, ResType>(callback);
                     });
     }
-
 };
 
 } // namespace client
@@ -543,6 +537,7 @@ class Server {
     size_t mBufSize = 1024;
     std::unique_ptr<uint8_t[]> mBuffer;
     using error_code = boost::system::error_code;
+    bool doQuit = false;
 public:
     Server(Implementation& impl, boost::asio::ip::tcp::socket& socket)
         : mImpl(impl)
@@ -551,6 +546,9 @@ public:
     {}
     void run() {
         read();
+    }
+    void quit() {
+        doQuit = true;
     }
 private:
     template<Command C, class Callback>
@@ -579,8 +577,6 @@ private:
                     [this](const error_code& ec, size_t bytes_written) {
                         if (ec) {
                             std::cerr << ec.message() << std::endl;
-                            mSocket.close();
-                            delete this;
                             return;
                         }
                         read(0);
@@ -611,7 +607,7 @@ private:
                         if (ec) {
                             std::cerr << ec.message() << std::endl;
                             mSocket.close();
-                            delete this;
+                            mImpl.close();
                             return;
                         }
                         read(0);
@@ -620,6 +616,9 @@ private:
         });
     }
     void read(size_t bytes_read = 0) {
+        if (bytes_read == 0 && doQuit) {
+            mSocket.get_io_service().stop();
+        }
         size_t reqSize = 0;
         if (bytes_read != 0) {
             reqSize = *reinterpret_cast<size_t*>(mBuffer.get());
@@ -639,7 +638,7 @@ private:
                     if (ec) {
                         std::cerr << ec.message() << std::endl;
                         mSocket.close();
-                        delete this;
+                        mImpl.close();
                         return;
                     }
                     read(bytes_read + br);
