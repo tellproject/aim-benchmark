@@ -114,7 +114,7 @@ void runPopulation(std::vector<aim::PopulationClient>& clients,
         for (auto& c : clients) {
             c.populate();
         }
-    }, numClients);
+    }, numSubscribers);
 }
 
 int main(int argc, const char** argv) {

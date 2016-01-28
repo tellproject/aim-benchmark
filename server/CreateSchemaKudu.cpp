@@ -65,10 +65,10 @@ void addField(kudu::client::KuduSchemaBuilder& schemaBuilder, FieldType type, co
 
 std::vector<const kudu::KuduPartialRow*> addSplitsSubscribers(int64_t subscriberNum, int partitions, kudu::client::KuduSchema& schema) {
     std::vector<const kudu::KuduPartialRow*> splits;
-    int increment = subscriberNum / partitions;
-    for (int i = 1; i < partitions; ++i) {
+    int64_t increment = subscriberNum / partitions;
+    for (int64_t i = 1; i < partitions; ++i) {
         auto row = schema.NewRow();
-        assertOk(row->SetInt16(0, i*increment));
+        assertOk(row->SetInt64(0, i*increment));
         splits.emplace_back(row);
     }
     return splits;
