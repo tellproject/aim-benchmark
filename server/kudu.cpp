@@ -162,7 +162,7 @@ void accept(io_service& service, ip::tcp::acceptor& a, kudu::client::KuduClient&
     });
 }
 
-thread_local unsigned UDP_THREAD_ID;
+thread_local unsigned UDP_THREAD_ID = 0;
 
 class UdpServer {
     boost::asio::ip::udp::socket mSocket;
@@ -347,10 +347,11 @@ int main(int argc, const char** argv) {
         aim::UdpServer udpServer(service, *client, numThreads, eventBatchSize, aimSchema);
         udpServer.bind(host, udpPort);
         udpServer.run();
+
         std::vector<std::thread> threads;
         for (unsigned i = 0; i < numThreads; ++i) {
-            UDP_THREAD_ID = i;
-            threads.emplace_back([&service](){
+            threads.emplace_back([&service, i](){
+                    UDP_THREAD_ID = i;
                     service.run();
             });
         }
