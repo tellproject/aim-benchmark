@@ -249,12 +249,12 @@ Q1Out Transactions::q1Transaction(KuduSession &session, const Q1In &in)
         projection.push_back(durSumAllWeek);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection, callsSumLocalWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL);
         int64_t sum = 0, cnt = 0, val;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, durSumAllWeek, val);
                 sum += val;
                 cnt++;
@@ -285,13 +285,13 @@ Q2Out Transactions::q2Transaction(KuduSession &session, const Q2In &in)
         projection.push_back(costMaxAllWeek);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection, callsSumAllWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL);
         double cost;
         result.max = std::numeric_limits<double>::min();
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, costMaxAllWeek, cost);
                 result.max = std::max(result.max, cost);
             }
@@ -319,7 +319,7 @@ Q3Out Transactions::q3Transaction(KuduSession &session)
         projection.push_back(costSumAllWeek);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection);
 
         // callsSumAllWeek -> durSumAllWeek.sum, costSumAllWeek.sum
@@ -330,7 +330,7 @@ Q3Out Transactions::q3Transaction(KuduSession &session)
         double cost;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, callsSumAllWeek, calls);
                 getField(row, durSumAllWeek, dur);
                 getField(row, costSumAllWeek, cost);
@@ -373,7 +373,7 @@ Q4Out Transactions::q4Transaction(KuduSession &session, const Q4In &in)
         projection.push_back(durSumLocalWeek);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection,
                 callsSumLocalWeek, in.alpha+1, KuduPredicate::GREATER_EQUAL,
                 durSumLocalWeek, in.beta+1, KuduPredicate::GREATER_EQUAL);
@@ -386,7 +386,7 @@ Q4Out Transactions::q4Transaction(KuduSession &session, const Q4In &in)
         int64_t dur;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, regionCity, city_id);
                 getField(row, callsSumLocalWeek, calls);
                 getField(row, durSumLocalWeek, dur);
@@ -432,7 +432,7 @@ Q5Out Transactions::q5Transaction(KuduSession &session, const Q5In &in)
         projection.push_back(costSumDistantWeek);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection,
                 subscriptionTypeId, in.sub_type, KuduPredicate::EQUAL,
                 categoryId, in.sub_category, KuduPredicate::EQUAL);
@@ -444,7 +444,7 @@ Q5Out Transactions::q5Transaction(KuduSession &session, const Q5In &in)
         double local_cost, dist_cost;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, regionRegion, region_id);
                 getField(row, costSumLocalWeek, local_cost);
                 getField(row, costSumDistantWeek, dist_cost);
@@ -491,7 +491,7 @@ Q6Out Transactions::q6Transaction(KuduSession &session, const Q6In &in)
         projection.push_back(durMaxDistantDay);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection,
                 regionCountry, in.country_id, KuduPredicate::EQUAL);
 
@@ -499,7 +499,7 @@ Q6Out Transactions::q6Transaction(KuduSession &session, const Q6In &in)
         int64_t subscriber;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, subscriberId, subscriber);
                 getField(row, durMaxLocalWeek, local_week);
                 getField(row, durMaxLocalDay, local_day);
@@ -553,7 +553,7 @@ Q7Out Transactions::q7Transaction(KuduSession &session, const Q7In &in)
         projection.push_back(callsSum);
 
         ScannerList scanners;
-        KuduScanBatch resultBatch;
+        std::vector<KuduRowResult> resultBatch;
         KuduScanner &scanner = openScan(*wTable, scanners, projection,
                 valueTypeId, in.subscriber_value_type, KuduPredicate::EQUAL);
 
@@ -562,7 +562,7 @@ Q7Out Transactions::q7Transaction(KuduSession &session, const Q7In &in)
         double cost;
         while (scanner.HasMoreRows()) {
             assertOk(scanner.NextBatch(&resultBatch));
-            for (KuduScanBatch::RowPtr row : resultBatch) {
+            for (KuduRowResult row : resultBatch) {
                 getField(row, subscriberId, subscriber);
                 getField(row, costSum, cost);
                 getField(row, durSum, dur);
