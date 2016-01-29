@@ -203,6 +203,13 @@ void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<
 
             std::unique_ptr<KuduWriteOperation> upd(wTable->NewUpdate());
 
+            // maintain primary key
+            set(*upd, subscriberId, int64_t(eventIter->caller_id));
+
+            // update time stamp
+            set(*upd, timeStamp, now());
+
+            // update all AM attributes
             for (uint i = 0; i < mAimSchema.numOfEntries(); ++i) {
                 auto &schemaEntry = mAimSchema[i];
                 std::function<tell::db::Field(tell::db::Field& ,Timestamp, const Event&)> fun;

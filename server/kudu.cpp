@@ -194,6 +194,8 @@ public:
         , mEventBatchSize(eventBatchSize)
         , mEventBatches(numThreads, std::vector<Event>())
     {
+        assertOk(mSession->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
+        mSession->SetTimeoutMillis(60000);
         for (auto& v : mEventBatches) {
             v.reserve(mEventBatchSize);
         }
