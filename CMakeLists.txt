@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(aim-benchmark)
 
+# Set CMake modules path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
 find_package(Jemalloc REQUIRED)
 
-# Set CMake modules path
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(COMMON_SRC
     common/Protocol.cpp
@@ -68,7 +69,6 @@ set(SERVER_SRC
     server/main.cpp
     server/Connection.cpp
     server/Connection.hpp
-    server/AimContext.hpp
     server/CreateSchema.cpp
     server/CreateSchema.hpp
     server/Populate.cpp

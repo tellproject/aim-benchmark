@@ -26,7 +26,6 @@
 #include <kudu/client/client.h>
 
 #include "server/sep/aim_schema.h"
-#include "AimContext.hpp"
 
 namespace aim {
 
