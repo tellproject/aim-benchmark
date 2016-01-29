@@ -99,6 +99,7 @@ FieldType fromTellStoreFieldType(tell::store::FieldType type) {
         return FieldType::DOUBLE;
     default:
         assert(false);
+        return tell::store::FieldType::NOTYPE;
         // AIM Schema is always one of the three above!
     }
 }
