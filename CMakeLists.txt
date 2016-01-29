@@ -1,13 +1,9 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(aim-benchmark)
 
-# Set CMake modules path
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
-find_package(Jemalloc REQUIRED)
 
 # used for newer gcc versions that clash with Kudu
 # --> make sure we compile old ABI
@@ -27,7 +23,7 @@ set(COMMON_SRC
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -mcx16 -ftemplate-depth=512 -Werror")
 
 find_package(Threads)
 
@@ -98,17 +94,20 @@ set(RTA_CLIENT_SRC
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BINARY_DIR}/meta_db.db COPYONLY)
 
 add_executable(aim_server ${SERVER_SRC})
+target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(aim_server PRIVATE aim_common telldb dl)
 target_link_libraries(aim_server PUBLIC crossbow_allocator)
 target_include_directories(aim_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(aim_server PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(sep_client ${SEP_CLIENT_SRC})
+target_include_directories(sep_client PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(sep_client PRIVATE aim_common ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(sep_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(sep_client PRIVATE ${Jemalloc_LIBRARIES})
 
 add_executable(rta_client ${RTA_CLIENT_SRC})
+target_include_directories(rta_client PUBLIC ${Crossbow_INCLUDE_DIRS})
 target_link_libraries(rta_client PRIVATE aim_common ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(rta_client PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(rta_client PRIVATE ${Jemalloc_LIBRARIES})
