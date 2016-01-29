@@ -158,7 +158,7 @@ public:
 void accept(io_service& service, ip::tcp::acceptor& a, kudu::client::KuduClient& client,
         const AIMSchema &aimSchema, int partitions) {
     auto conn = new Connection(service, client, aimSchema, partitions);
-    a.async_accept(conn->socket(), [&, conn, aimSchema, partitions](const boost::system::error_code& err) {
+    a.async_accept(conn->socket(), [&, conn, partitions](const boost::system::error_code& err) {
         if (err) {
             delete conn;
             LOG_ERROR(err.message());
