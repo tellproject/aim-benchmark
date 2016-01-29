@@ -46,7 +46,7 @@ void PopulationClient::populate(uint64_t lowest, uint64_t highest) {
                     LOG_ERROR(std::get<1>(res));
                     return;
                 }
-                LOG_INFO(("Populated Table, subsriber " + crossbow::to_string(start)
+                LOG_INFO(("Populated Table, subscriber " + crossbow::to_string(start)
                           + " to " + crossbow::to_string(end)));
                 if (end < highest) {
                     populate(end + 1, highest);
