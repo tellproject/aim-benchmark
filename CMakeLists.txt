@@ -45,16 +45,12 @@ set(SERVER_COMMON_SRC
     server/sep/aim_schema_entry.h
     server/sep/schema_and_index_builder.cpp
     server/sep/schema_and_index_builder.h
-    server/sep/sep.cpp
-    server/sep/sep.h
     server/sep/utils.cpp
     server/sep/utils.h
     server/sep/value.cpp
     server/sep/value.h
     server/sep/window.cpp
     server/sep/window.h
-    server/rta/Controller.cpp
-    server/rta/Controller.h
     server/rta/dimension_record.cpp
     server/rta/dimension_record.h
     server/rta/dimension_schema.cpp
