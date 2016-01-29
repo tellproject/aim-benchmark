@@ -4,10 +4,10 @@ project(aim-benchmark)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(TellDB REQUIRED)
 find_package(Crossbow REQUIRED)
+find_package(Jemalloc REQUIRED)
 
-# used for newer gcc versions that clash with Kudu
-# --> make sure we compile old ABI
-#add_definitions( -D_GLIBCXX_USE_CXX11_ABI=0 )
+# Set CMake modules path
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(COMMON_SRC
     common/Protocol.cpp
@@ -44,12 +44,16 @@ set(SERVER_COMMON_SRC
     server/sep/aim_schema_entry.h
     server/sep/schema_and_index_builder.cpp
     server/sep/schema_and_index_builder.h
+    server/sep/sep.cpp
+    server/sep/sep.h
     server/sep/utils.cpp
     server/sep/utils.h
     server/sep/value.cpp
     server/sep/value.h
     server/sep/window.cpp
     server/sep/window.h
+    server/rta/Controller.cpp
+    server/rta/Controller.h
     server/rta/dimension_record.cpp
     server/rta/dimension_record.h
     server/rta/dimension_schema.cpp

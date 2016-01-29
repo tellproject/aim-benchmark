@@ -47,24 +47,40 @@ Q5Out Transactions::q5Transaction(Transaction& tx, Context &context, const Q5In&
         // 5 different unique values
         // aggregate them all in separate scans
 
-        uint32_t selectionLength = 32;
+        uint32_t selectionLength = 64;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
 
         crossbow::buffer_writer selectionWriter(selection.get(), selectionLength);
-        selectionWriter.write<uint32_t>(0x1u);
-        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.write<uint32_t>(0x3u);
+        selectionWriter.write<uint16_t>(0x3u);
         selectionWriter.write<uint16_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
         selectionWriter.write<uint32_t>(0x0u);
 
         selectionWriter.write<uint16_t>(context.regionRegion);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.advance(2);
+        selectionWriter.set(0, 2);
         auto valuePtr = selectionWriter.data();
         selectionWriter.write<int32_t>(0);                // we are going to vary this
+
+        selectionWriter.write<uint16_t>(context.subscriptionTypeId);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.set(0, 4);
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x1u);
+        selectionWriter.write<int16_t>(in.sub_type);
+        selectionWriter.set(0, 4);
+
+        selectionWriter.write<uint16_t>(context.categoryId);
+        selectionWriter.write<uint16_t>(0x1u);
+        selectionWriter.set(0, 4);
+        selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
+        selectionWriter.write<uint8_t>(0x2u);
+        selectionWriter.write<int16_t>(in.sub_category);
+        selectionWriter.set(0, 4);
 
         // sort aggregation attributes
         std::map<id_t, std::tuple<AggregationType, FieldType,

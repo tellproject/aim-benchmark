@@ -59,27 +59,27 @@ Q4Out Transactions::q4Transaction(Transaction& tx, Context &context, const Q4In&
 
         selectionWriter.write<uint16_t>(context.regionCity);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::EQUAL));
         selectionWriter.write<uint8_t>(0x0u);
-        selectionWriter.advance(2);
+        selectionWriter.set(0, 2);
         const auto varyPtr = reinterpret_cast<int32_t*>(selectionWriter.data());
         selectionWriter.write<int32_t>(0);                // we are going to vary this
 
         selectionWriter.write<uint16_t>(context.callsSumLocalWeek);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
         selectionWriter.write<uint8_t>(0x1u);
-        selectionWriter.advance(2);
+        selectionWriter.set(0, 2);
         selectionWriter.write<int32_t>(in.alpha);
 
         selectionWriter.write<uint16_t>(context.durSumLocalWeek);
         selectionWriter.write<uint16_t>(0x1u);
-        selectionWriter.advance(4);
+        selectionWriter.set(0, 4);
         selectionWriter.write<uint8_t>(crossbow::to_underlying(PredicateType::GREATER));
         selectionWriter.write<uint8_t>(0x2u);
-        selectionWriter.advance(6);
+        selectionWriter.set(0, 6);
         selectionWriter.write<int64_t>(in.beta);
 
 
