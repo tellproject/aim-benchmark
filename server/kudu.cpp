@@ -99,7 +99,7 @@ public:
     template<Command C, class Callback>
     typename std::enable_if<C == Command::CREATE_SCHEMA, void>::type
     execute(const typename Signature<C>::arguments& args, const Callback callback) {
-        std::cout << "CreateSchema";
+        std::cout << "CreateSchema" << std::endl;
         std::cout.flush();
         createSchema(*mSession, args, mAimSchema, mPartitions);
         callback(std::make_tuple(true, crossbow::string()));
@@ -296,7 +296,7 @@ int main(int argc, const char** argv) {
     }
 
     if (!schemaFile.size()) {
-        std::cerr << "no schema file!\n";
+        std::cerr << "no schema file!" << std::endl;
         return 1;
     }
 

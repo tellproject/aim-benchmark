@@ -90,12 +90,12 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
                 0, subscription_types.size()-1);
         assertOk(row->SetInt16("subscription_type_id", subscription_type_to_id[
                 subscription_types[subscriptionId]]));
-        assertOk(row->SetInt64("subscription_cost_id", subscription_cost_to_id[
+        assertOk(row->SetInt16("subscription_cost_id", subscription_cost_to_id[
                 subscription_cost[subscriptionId]]));
-        assertOk(row->SetInt64("subscription_free_call_mins_id",
+        assertOk(row->SetInt16("subscription_free_call_mins_id",
                 subscription_free_call_mins_to_id[subscription_free_call_mins[
                 subscriptionId]]));
-        assertOk(row->SetInt64("subscription_data_id", subscription_data_to_id[
+        assertOk(row->SetInt16("subscription_data_id", subscription_data_to_id[
                 subscription_data[subscriptionId]]));
 
         // city
