@@ -173,7 +173,7 @@ thread_local unsigned UDP_THREAD_ID = 0;
 
 class UdpServer {
     boost::asio::ip::udp::socket mSocket;
-    Session mSession;
+    std::vector<Session> mSessions;
     Transactions mTxs;
     size_t mBufferSize;
     std::unique_ptr<char[]> mBuffer;
@@ -187,15 +187,17 @@ public:
               unsigned eventBatchSize,
               const AIMSchema &aimSchema)
         : mSocket(service)
-        , mSession(client.NewSession())
         , mTxs(aimSchema)
         , mBufferSize(1024)
         , mBuffer(new char[mBufferSize])
         , mEventBatchSize(eventBatchSize)
         , mEventBatches(numThreads, std::vector<Event>())
     {
-        assertOk(mSession->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
-        mSession->SetTimeoutMillis(60000);
+        for (size_t i = 0; i < numThreads; ++i) {
+            mSessions.emplace_back(client.NewSession());
+            mSessions.back()->SetTimeoutMillis(60000);
+            assertOk(mSessions.back()->SetFlushMode(kudu::client::KuduSession::MANUAL_FLUSH));
+        }
         for (auto& v : mEventBatches) {
             v.reserve(mEventBatchSize);
         }
@@ -251,7 +253,7 @@ public:
             if (eventBatch.size() >= mEventBatchSize) {
                 std::vector<Event> events;
                 events.swap(eventBatch);
-                mTxs.processEvent(*mSession, events);
+                mTxs.processEvent(*(mSessions[UDP_THREAD_ID]), events);
                 eventBatch.reserve(mEventBatchSize);
             }
             eventBatch.push_back(ev);

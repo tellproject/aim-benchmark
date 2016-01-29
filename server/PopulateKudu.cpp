@@ -59,7 +59,7 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
     std::unordered_map<crossbow::string, tell::db::Field> tuple;
     initializeWideTableColumn(tuple, aimSchema); // these attributes are the same for each tuple
     for (uint64_t i = lowest; i <= highest; ++i) {
-        auto ins = table->NewInsert();
+        std::unique_ptr<KuduInsert> ins(table->NewInsert());
         auto row = ins->mutable_row();
 
         // subscriber-id and last-updated
@@ -126,7 +126,7 @@ void Populator::populateWideTable(kudu::client::KuduSession& session,
         assertOk(row->SetInt16("value_type_threshold_id", subscriber_value_threshold_to_id[
                 subscriber_value_threshold[valueTypeId]]));
 
-        assertOk(session.Apply(ins));
+        assertOk(session.Apply(ins.release()));
     }
     assertOk(session.Flush());
 }
