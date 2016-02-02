@@ -95,7 +95,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/server/meta_db.db ${CMAKE_CURRENT_BIN
 
 add_executable(aim_server ${SERVER_SRC})
 target_include_directories(aim_server PUBLIC ${Crossbow_INCLUDE_DIRS})
-target_link_libraries(aim_server PRIVATE aim_common telldb dl)
+target_link_libraries(aim_server PRIVATE aim_common dl)
 target_link_libraries(aim_server PUBLIC crossbow_allocator)
 target_include_directories(aim_server PRIVATE ${Jemalloc_INCLUDE_DIRS})
 target_link_libraries(aim_server PRIVATE ${Jemalloc_LIBRARIES})
