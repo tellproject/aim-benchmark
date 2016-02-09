@@ -9,33 +9,44 @@
 
 -----------------------------------------------------------------------------------------------------------
 
-I. AIM Server
-=============
-server/: contains storage, Stream & Event Processing (SEP) and RealTime Analytics (RTA).
-For more information on how to start the server please refer to the README file located at server/README.
+# Huawei-AIM Benchmark
+The Huawei-AIM Benchmark abstracts an event-processing and real-time analytics usecase of the telecommunication industry.
+It is a mixed workload consisting of an event processing transaction and seven parametrized simple analytical queries.
+More details of the benchmark can be found in the [Analytics in Motion](http://people.inf.ethz.ch/braunl/AIM-SIGMOD-2015.pdf) paper.
 
-2. SEP-client
-=============
-sep-client/: contains client code that sends events to the server.
-For more information on how to start sep-client please refer to the README file located at sep-client/README.
+## Building
+First, build [Tell](https://github.com/tellproject/tell). Then, clone then newest version of the aim benchmark and build Tell again. This will also build the aim benchmark:
 
-3. RTA-client
-=============
-rta-client/: contains client code that sends RTA queries to the server.
-For more information on how to start rta-client please refer to the README file located at rta-client/README.
+```bash
+cd <tell-main-directory>
+cd watch
+git clone https://github.com/tellproject/aim-benchmark.git
+cd <tell-build>
+make
+```
 
-4. How to build
-===============
-Check the README files located in the project folders listed above.
+### Building for Kudu
+If you want to run the AIM Benchmark not only on Tell, but also on [Kudu](http://getkudu.io), first make sure that you configure the kuduClient_DIR correctly in the CMakeLists.txt. Once it is set correctly, you have to call cmake again in the tell build directory and set the addtional flag:
 
-5. How to run
-=============
-# You should first run the aim server.
-# When population is over, sep and rta client can also be started.
+```bash
+-DUSE_KUDU=ON
+```
 
-Alternatively, you can use the automated testing framework located in framework/.
+## Running
+The simplest way to run the benchmark is to use the [Python Helper Scripts](https://github.com/tellproject/helper_scripts). They will not only help you to start TellStore, but also one or several AIM servers and one or several AIM clients.
 
-6. Miscalenous
-==============
-- AIMSchemaCampatignGenerator/: used to generate an AIM wide table schema with a specific number of attributes and campaigns. A sample SQL file is provided.
-- util/: util classes that are used in different parts of the code.  	
+### Server
+Of course, you can also run the server from the commandline. Depending on whether you want to use Tell or Kudu as the storage backend, execute one of the two lines below. This will print out to the console the commandline options you need to start the server:
+
+```bash
+watch/aim-benchmark/aim_server -h
+watch/aim-benchmark/aim_kudu -h
+```
+
+### Clients
+There are two different kind of clients in the AIM benchmark. Usually it is enough to start one of each kind (but with potentially more than one thread). The "Stream and Event Processing" (SEP) client uses a UDP connection to send events to the AIM server to be processed there, while the "Real-Time Analytics" (RTA) client sends analytical queries to be processed. Both clients write log files in CSV format. While the SEP client just logs how many events it was able to send, the RTA client logs every query that was executed with query type, start time, end time (both in millisecs and relative to the beginning of the experiment) as well as whether the queries were answered successfully or not. The clients can connect to AIM servers regardless of their storage backend. You can find out about the commandline options for these clients by typing:
+
+```bash
+watch/aim-benchmark/sep_client -h
+watch/aim-benchmark/rta_client -h
+```
