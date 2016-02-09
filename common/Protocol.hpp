@@ -632,6 +632,7 @@ private:
             std::unique_ptr<uint8_t[]> newBuf(new uint8_t[reqSize]);
             memcpy(newBuf.get(), mBuffer.get(), mBufSize);
             mBuffer.swap(newBuf);
+            mBufSize = reqSize;
         }
         mSocket.async_read_some(boost::asio::buffer(mBuffer.get() + bytes_read, mBufSize - bytes_read),
                 [this, bytes_read](const error_code& ec, size_t br){
