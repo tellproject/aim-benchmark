@@ -107,7 +107,7 @@ KuduScanner &openScan(KuduTable& table, ScannerList& scanners, const std::vector
     auto& scanner = *scanners.back();
     addPredicates(table, scanner, args...);
     if (projectionColumns.size() > 0) {
-        scanner.SetProjectedColumnNames(projectionColumns);
+        assertOk(scanner.SetProjectedColumnNames(projectionColumns));
     }
     assertOk(scanner.Open());
     return scanner;
