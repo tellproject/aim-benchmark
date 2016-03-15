@@ -115,9 +115,8 @@ KuduScanner &openScan(KuduTable& table, ScannerList& scanners, const std::vector
 
 // simple get request (retrieves one tuple)
 template<class... Args>
-KuduRowResult get(KuduTable& table, ScannerList& scanners, const Args&... args) {
-    std::vector<std::string> emptyVec;
-    auto& scanner = openScan(table, scanners, emptyVec, args...);
+KuduRowResult get(KuduTable& table, ScannerList& scanners, const std::vector<std::string> &projectionColumns, const Args&... args) {
+    auto& scanner = openScan(table, scanners, projectionColumns, args...);
     assert(scanner.HasMoreRows());
     std::vector<KuduRowResult> rows;
     assertOk(scanner.NextBatch(&rows));
@@ -146,6 +145,30 @@ void set(KuduWriteOperation& upd, const Slice& slice, std::nullptr_t) {
 
 void set(KuduWriteOperation& upd, const Slice& slice, const Slice& str) {
     assertOk(upd.mutable_row()->SetString(slice, str));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, int16_t v) {
+    assertOk(upd.mutable_row()->SetInt16(columnIdx, v));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, int32_t v) {
+    assertOk(upd.mutable_row()->SetInt32(columnIdx, v));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, int64_t v) {
+    assertOk(upd.mutable_row()->SetInt64(columnIdx, v));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, double v) {
+    assertOk(upd.mutable_row()->SetDouble(columnIdx, v));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, std::nullptr_t) {
+    assertOk(upd.mutable_row()->SetNull(columnIdx));
+}
+
+void set(KuduWriteOperation& upd, const int columnIdx, const Slice& str) {
+    assertOk(upd.mutable_row()->SetString(columnIdx, str));
 }
 
 void getField(KuduRowResult &row, const std::string &columnName, int16_t &result) {
@@ -183,13 +206,13 @@ void getField(KuduRowResult &row,  int columnIdx, double &result) {
 namespace aim {
 
 template <typename T, typename Fun>
-void updateTuple (Fun fun, const std::string &columnName,
+void updateTuple (Fun fun, const int columnIdx,
         KuduRowResult &oldTuple, KuduWriteOperation &upd, Event &event, Timestamp ts) {
     T value;
-    getField(oldTuple, columnName, value);
+    getField(oldTuple, columnIdx, value);
     tell::db::Field field (value);
     auto f = fun(field, ts, event);
-    set(upd, columnName, f.template value<T>());
+    set(upd, columnIdx, f.template value<T>());
 }
 
 void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<Event> &events) {
@@ -205,7 +228,7 @@ void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<
         // get futures in reverse order
         for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
             oldTuples.emplace_back(
-                    get(*wTable, scanners, subscriberId, iter->caller_id, KuduPredicate::EQUAL));
+                    get(*wTable, scanners, mEventProjection, subscriberId, iter->caller_id, KuduPredicate::EQUAL));
         }
 
         auto eventIter = events.begin();
@@ -215,15 +238,15 @@ void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<
 
             auto& oldTuple = *iter;
             Timestamp ts;
-            assertOk(oldTuple.GetInt64(timeStamp, &ts));
+            assertOk(oldTuple.GetInt64(sTimeStampIdx, &ts));
 
             std::unique_ptr<KuduWriteOperation> upd(wTable->NewUpdate());
 
             // maintain primary key
-            set(*upd, subscriberId, int64_t(eventIter->caller_id));
+            set(*upd, sSsubscriberIdIdx, int64_t(eventIter->caller_id));
 
             // update time stamp
-            set(*upd, timeStamp, now());
+            set(*upd, sTimeStampIdx, now());
 
             // update all AM attributes
             for (uint i = 0; i < mAimSchema.numOfEntries(); ++i) {
@@ -235,19 +258,19 @@ void Transactions::processEvent(kudu::client::KuduSession& session, std::vector<
                     fun = std::bind(&AIMSchemaEntry::update, schemaEntry, _1, _2, _3);
                 else
                     fun =std::bind(&AIMSchemaEntry::maintain, schemaEntry, _1, _2, _3);
-                std::string fieldName (schemaEntry.name().c_str(), schemaEntry.name().size());
+                const int columnIdx = i+2;    // indexes start at 0, first two indexes are used up by suscriber-id and timestamp
                 switch (schemaEntry.type()) {
                 case tell::store::FieldType::INT:
-                    updateTuple<int32_t>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    updateTuple<int32_t>(fun, columnIdx, oldTuple, *upd, *eventIter, ts);
                     break;
                 case tell::store::FieldType::BIGINT:
-                    updateTuple<int64_t>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    updateTuple<int64_t>(fun, columnIdx, oldTuple, *upd, *eventIter, ts);
                     break;
                 case tell::store::FieldType::DOUBLE:
-                    updateTuple<double>(fun, fieldName, oldTuple, *upd, *eventIter, ts);
+                    updateTuple<double>(fun, columnIdx, oldTuple, *upd, *eventIter, ts);
                     break;
                 default:
-                    //
+                    // this should never actually happen
                     assert(false);
                 }
             }

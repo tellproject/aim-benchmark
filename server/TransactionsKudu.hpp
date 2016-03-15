@@ -21,6 +21,10 @@
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
 #pragma once
+
+#include <vector>
+#include <string>
+
 #include <common/Protocol.hpp>
 #include <common/Util.hpp>
 #include <kudu/client/client.h>
@@ -29,7 +33,37 @@
 
 namespace aim {
 
+    // general field names used in the AIM benchmark
+    static const std::string subscriberId = "subscriber_id";
+    static const std::string timeStamp = "last_updated";
+
+    static const std::string subscriptionTypeId = "subscription_type_id";
+
+    static const std::string regionZip = "city_zip";
+    static const std::string regionCity = "region_cty_id";
+    static const std::string regionCountry = "region_country_id";
+    static const std::string regionRegion = "region_region_id";
+
+    static const std::string valueTypeId = "value_type_id";
+
+    static const std::string categoryId = "category_id";
+
+    // general field indexes used in the AIM benchmark
+    static const int sSsubscriberIdIdx = 0;
+    static const int sTimeStampIdx = 1;
+
+static std::vector<std::string> getRecordProjection(const AIMSchema &aimSchema) {
+    std::vector<std::string> result;
+    result.emplace_back(subscriberId);
+    result.emplace_back(timeStamp);
+    for (uint i = 0; i < aimSchema.numOfEntries(); ++i) {
+        result.emplace_back(aimSchema[i].name().c_str(), aimSchema[i].name().size());
+    }
+    return result;
+}
+
 class Transactions {
+
 
 public:
 
@@ -37,7 +71,8 @@ public:
      * takes a transaction in the constructor such that schema can be obained at startup time
      */
     Transactions(const AIMSchema &aimSchema):
-            mAimSchema(aimSchema)
+            mAimSchema(aimSchema),
+            mEventProjection(getRecordProjection(aimSchema))
     {
         auto crossbow_string = mAimSchema.getName(Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK);
         callsSumLocalWeek = std::string (crossbow_string.c_str(), crossbow_string.size());
@@ -87,20 +122,8 @@ public:
 private:
     const AIMSchema &mAimSchema;
 
-    // field names used in the AIM benchmark
-    std::string subscriberId = "subscriber_id";
-    std::string timeStamp = "last_updated";
-
-    std::string subscriptionTypeId = "subscription_type_id";
-
-    std::string regionZip = "city_zip";
-    std::string regionCity = "region_cty_id";
-    std::string regionCountry = "region_country_id";
-    std::string regionRegion = "region_region_id";
-
-    std::string valueTypeId = "value_type_id";
-
-    std::string categoryId = "category_id";
+    // projection for getting all non-static fields (AM attributes)
+    const std::vector<std::string> mEventProjection;
 
     std::string callsSumLocalWeek;
     std::string callsSumAllWeek;
