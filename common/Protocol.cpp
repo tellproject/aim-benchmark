@@ -20,7 +20,11 @@
  *     Kevin Bocksrocker <kevin.bocksrocker@gmail.com>
  *     Lucas Braun <braunl@inf.ethz.ch>
  */
+// gcc bug with new boost...
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#include <boost/asio/error.hpp>
+#pragma GCC diagnostic pop
+
 #include "Protocol.hpp"
-
-
 
