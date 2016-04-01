@@ -161,8 +161,8 @@ public:
     {
         if (!context.isInitialized) {
             auto wFuture = tx.openTable("wt");
-            auto wideTable = wFuture.get();
-            auto tellSchema = tx.getSchema(wideTable);
+            context.wideTable = wFuture.get();
+            auto tellSchema = tx.getSchema(context.wideTable);
 
             // initialize this vector
             context.tellIDToAIMSchemaEntry.reserve(aimSchema.numOfEntries());

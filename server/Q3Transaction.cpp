@@ -39,9 +39,7 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
     Q3Out result;
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-        auto schema = tx.getSchema(wideTable);
+        auto schema = tx.getSchema(context.wideTable);
 
         // idea: we have to group by callsSumAllWeek
         // --> allmost all values in [0,10) --> create 10 parallel aggregations
@@ -91,7 +89,7 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
                     std::get<2>(attribute.second), true);
         }
 
-        Table resultTable(wideTable.value, std::move(resultSchema));
+        Table resultTable(context.wideTable.value, std::move(resultSchema));
 
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();
@@ -125,7 +123,7 @@ Q3Out Transactions::q3Transaction(Transaction& tx, Context &context)
                     std::get<2>(attribute.second), true);
         }
 
-        Table projectionResultTable(wideTable.value, std::move(projectionResultSchema));
+        Table projectionResultTable(context.wideTable.value, std::move(projectionResultSchema));
 
         // run the rest-projection scan
         scanIterators.push_back(clientHandle.scan(projectionResultTable, snapshot,

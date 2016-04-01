@@ -39,9 +39,7 @@ Q2Out Transactions::q2Transaction(Transaction& tx, Context &context, const Q2In&
     Q2Out result;
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-        auto schema = tx.getSchema(wideTable);
+        auto schema = tx.getSchema(context.wideTable);
 
         uint32_t selectionLength = 32;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
@@ -71,7 +69,7 @@ Q2Out Transactions::q2Transaction(Transaction& tx, Context &context, const Q2In&
 
         Schema resultSchema(schema.type());
         resultSchema.addField(FieldType::DOUBLE, "max", true);
-        Table resultTable(wideTable.value, std::move(resultSchema));
+        Table resultTable(context.wideTable.value, std::move(resultSchema));
 
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();

@@ -38,16 +38,13 @@ void Transactions::processEvent(Transaction& tx,
             Context &context, std::vector<Event> &events) {
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-
         std::vector<Future<Tuple>> tupleFutures;
         tupleFutures.reserve(events.size());
 
         // get futures in revers order
         for (auto iter = events.rbegin(); iter < events.rend(); ++iter) {
             tupleFutures.emplace_back(
-                        tx.get(wideTable, tell::db::key_t{iter->caller_id}));
+                        tx.get(context.wideTable, tell::db::key_t{iter->caller_id}));
         }
 
         auto eventIter = events.begin();
@@ -63,7 +60,7 @@ void Transactions::processEvent(Transaction& tx,
                 else
                     pair.second.maintain(newTuple[pair.first], ts, *eventIter);
             }
-            tx.update(wideTable, tell::db::key_t{eventIter->caller_id},
+            tx.update(context.wideTable, tell::db::key_t{eventIter->caller_id},
                       oldTuple, newTuple);
         }
 

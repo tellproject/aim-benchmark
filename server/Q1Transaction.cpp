@@ -39,9 +39,7 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
     Q1Out result;
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-        auto schema = tx.getSchema(wideTable);
+        auto schema = tx.getSchema(context.wideTable);
 
         uint32_t selectionLength = 32;
         std::unique_ptr<char[]> selection(new char[selectionLength]);
@@ -74,7 +72,7 @@ Q1Out Transactions::q1Transaction(Transaction& tx, Context &context, const Q1In&
         Schema resultSchema(schema.type());
         resultSchema.addField(FieldType::BIGINT, "sum", true);
         resultSchema.addField(FieldType::BIGINT, "cnt", true);
-        Table resultTable(wideTable.value, std::move(resultSchema));
+        Table resultTable(context.wideTable.value, std::move(resultSchema));
 
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();

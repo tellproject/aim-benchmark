@@ -39,9 +39,7 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
     Q7Out result;
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-        auto schema = tx.getSchema(wideTable);
+        auto schema = tx.getSchema(context.wideTable);
 
         // idea: we have to group by cityName
         // 5 different unique values
@@ -94,7 +92,7 @@ Q7Out Transactions::q7Transaction(Transaction& tx, Context &context, const Q7In&
                     std::get<1>(attribute.second), true);
         }
 
-        Table resultTable(wideTable.value, std::move(resultSchema));
+        Table resultTable(context.wideTable.value, std::move(resultSchema));
         auto& resultRecord = resultTable.record();
 
         Record::id_t subscriberIdField;

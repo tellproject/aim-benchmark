@@ -39,9 +39,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
     Q6Out result;
 
     try {
-        auto wFuture = tx.openTable("wt");
-        auto wideTable = wFuture.get();
-        auto schema = tx.getSchema(wideTable);
+        auto schema = tx.getSchema(context.wideTable);
         auto &snapshot = tx.snapshot();
         auto &clientHandle = tx.getHandle();
 
@@ -91,7 +89,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
                         std::get<2>(attribute.second), true);
             }
 
-            Table resultTable(wideTable.value, std::move(resultSchema));
+            Table resultTable(context.wideTable.value, std::move(resultSchema));
 
             auto scanIterator = clientHandle.scan(resultTable, snapshot,
                     *context.scanMemoryMananger, ScanQueryType::AGGREGATION, selectionLength,
@@ -152,7 +150,7 @@ Q6Out Transactions::q6Transaction(Transaction& tx, Context &context, const Q6In&
 
             Schema resultSchema(schema.type());
             resultSchema.addField(FieldType::BIGINT, "min_subscriber_id", true);
-            Table resultTable(wideTable.value, std::move(resultSchema));
+            Table resultTable(context.wideTable.value, std::move(resultSchema));
 
             std::vector<std::shared_ptr<ScanIterator>> scanIterators;
             scanIterators.reserve(4);

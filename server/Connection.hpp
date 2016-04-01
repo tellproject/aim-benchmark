@@ -72,6 +72,8 @@ struct Context {
     id_t categoryId;
     id_t valueTypeId;
 
+    tell::db::table_t wideTable;
+
 };
 
 class CommandImpl;
