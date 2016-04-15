@@ -206,7 +206,7 @@ struct Signature<Command::Q3> {
  * FROM WT, RegionInfo
  * WHERE number of local calls this week > alpha
  * AND total duration of local calls this week > beta
- * AND VWT.zip = RegionInfo.zip
+ * AND WT.zip = RegionInfo.zip
  * GROUP BY city
  */
 
@@ -253,10 +253,10 @@ struct Signature<Command::Q4> {
  * Q5:
  * SELECT region.name, sum(total cost of local calls this week) as local,
  *        sum(total cost of long distance calls this week) as long_distance
- * FROM VWT, SubscriptionType t, SubscriberCategory c, RegionInfo r
+ * FROM WT, SubscriptionType t, SubscriberCategory c, RegionInfo r
  * WHERE t.type = subscriptionType AND c.type = subscriberCategory AND
- *       VWT.subscription-type = t.id AND VWT.category = c.id AND
- *       VWT.zip = r.zip
+ *       WT.subscription-type = t.id AND WT.category = c.id AND
+ *       WT.zip = r.zip
  * GROUP BY region
  */
 
@@ -350,9 +350,9 @@ struct Signature<Command::Q6> {
  * SELECT subscriber-id,
  *      min(avg cost of calls this T / avg duration of calls this T)
  *          as flat-rate
- * FROM VWT, SubscriberValue v
+ * FROM WT, SubscriberValue v
  * WHERE v.type = subscriberValueType
- * AND VWT.value = v.id
+ * AND WT.value = v.id
  *
  * T is either "week" or "day"
  */
