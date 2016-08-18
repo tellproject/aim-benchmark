@@ -32,6 +32,81 @@ using namespace boost::asio;
 
 namespace aim {
 
+    inline void initializeContextIfNecessary(tell::db::Transaction &tx, Context &context,
+            const AIMSchema &aimSchema,
+            tell::store::ScanMemoryManager *scanMemoryManager)
+{
+    if (!context.isInitialized) {
+        auto wFuture = tx.openTable("wt");
+        context.wideTable = wFuture.get();
+        auto tellSchema = tx.getSchema(context.wideTable);
+
+        // initialize this vector
+        context.tellIDToAIMSchemaEntry.reserve(aimSchema.numOfEntries());
+        std::map<id_t, AIMSchemaEntry> tmpMap;
+
+        for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i) {
+            tmpMap.emplace(std::make_pair(
+                        tellSchema.idOf(aimSchema[i].name()),
+                                aimSchema[i]));
+        }
+        for (auto &pair: tmpMap)
+            context.tellIDToAIMSchemaEntry.emplace_back(std::move(pair));
+
+        context.scanMemoryMananger = scanMemoryManager;
+
+        context.subscriberId = tellSchema.idOf("subscriber_id");
+        context.timeStampId = tellSchema.idOf("last_updated");
+
+        context.callsSumLocalWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
+        context.callsSumAllWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+        context.callsSumAllDay = tellSchema.idOf(aimSchema.getName(
+                Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
+
+        context.durSumAllWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
+        context.durSumAllDay = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::DAY));
+        context.durSumLocalWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::SUM,FilterType::LOCAL, WindowLength::WEEK));
+
+        context.durMaxLocalWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::WEEK));
+        context.durMaxLocalDay = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::DAY));
+        context.durMaxDistantWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::WEEK));
+        context.durMaxDistantDay = tellSchema.idOf(aimSchema.getName(
+                Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::DAY));
+
+        context.costMaxAllWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::COST, AggrFun::MAX, FilterType::NO, WindowLength::WEEK));
+        context.costSumAllWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
+        context.costSumAllDay = tellSchema.idOf(aimSchema.getName(
+                Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
+        context.costSumLocalWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::COST, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
+        context.costSumDistantWeek = tellSchema.idOf(aimSchema.getName(
+                Metric::COST, AggrFun::SUM, FilterType::NONLOCAL, WindowLength::WEEK));
+
+        context.subscriptionTypeId = tellSchema.idOf("subscription_type_id");
+
+        context.regionZip = tellSchema.idOf("city_zip");
+        context.regionCity = tellSchema.idOf("region_cty_id");
+        context.regionCountry = tellSchema.idOf("region_country_id");
+        context.regionRegion = tellSchema.idOf("region_region_id");
+
+        context.categoryId = tellSchema.idOf("category_id");
+        context.valueTypeId = tellSchema.idOf("value_type_id");
+
+        context.isInitialized = true;
+    }
+}
+
+
 struct EventProcessor : public std::enable_shared_from_this<EventProcessor> {
 private:
     boost::asio::io_service& mService;
@@ -46,7 +121,8 @@ public:
         , mIsFree(isFree)
     {}
     void runTransaction(tell::db::Transaction& tx, Context& context) {
-        mTransactions.processEvent(tx, context, events);
+        initializeContextIfNecessary(tx, context, mTransactions.getAimSchema(), nullptr);
+        mTransactions.processEvents(tx, context, events);
         auto fiber = mFiber;
         auto isFree = &mIsFree;
         mService.post([fiber, isFree]() {
@@ -153,80 +229,6 @@ public:
 
     void close() {
         delete mConnection;
-    }
-
-    inline void initializeContextIfNecessary(tell::db::Transaction &tx, Context &context,
-            const AIMSchema &aimSchema,
-            tell::store::ScanMemoryManager *scanMemoryManager)
-    {
-        if (!context.isInitialized) {
-            auto wFuture = tx.openTable("wt");
-            context.wideTable = wFuture.get();
-            auto tellSchema = tx.getSchema(context.wideTable);
-
-            // initialize this vector
-            context.tellIDToAIMSchemaEntry.reserve(aimSchema.numOfEntries());
-            std::map<id_t, AIMSchemaEntry> tmpMap;
-
-            for (unsigned i = 0; i < aimSchema.numOfEntries(); ++i) {
-                tmpMap.emplace(std::make_pair(
-                            tellSchema.idOf(aimSchema[i].name()),
-                                    aimSchema[i]));
-            }
-            for (auto &pair: tmpMap)
-                context.tellIDToAIMSchemaEntry.emplace_back(std::move(pair));
-
-            context.scanMemoryMananger = scanMemoryManager;
-
-            context.subscriberId = tellSchema.idOf("subscriber_id");
-            context.timeStampId = tellSchema.idOf("last_updated");
-
-            context.callsSumLocalWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::CALL, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
-            context.callsSumAllWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
-            context.callsSumAllDay = tellSchema.idOf(aimSchema.getName(
-                    Metric::CALL, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
-
-            context.durSumAllWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::WEEK));
-            context.durSumAllDay = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::SUM,FilterType::NO, WindowLength::DAY));
-            context.durSumLocalWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::SUM,FilterType::LOCAL, WindowLength::WEEK));
-
-            context.durMaxLocalWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::WEEK));
-            context.durMaxLocalDay = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::MAX,FilterType::LOCAL, WindowLength::DAY));
-            context.durMaxDistantWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::WEEK));
-            context.durMaxDistantDay = tellSchema.idOf(aimSchema.getName(
-                    Metric::DUR, AggrFun::MAX,FilterType::NONLOCAL, WindowLength::DAY));
-
-            context.costMaxAllWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::COST, AggrFun::MAX, FilterType::NO, WindowLength::WEEK));
-            context.costSumAllWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::WEEK));
-            context.costSumAllDay = tellSchema.idOf(aimSchema.getName(
-                    Metric::COST, AggrFun::SUM, FilterType::NO, WindowLength::DAY));
-            context.costSumLocalWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::COST, AggrFun::SUM, FilterType::LOCAL, WindowLength::WEEK));
-            context.costSumDistantWeek = tellSchema.idOf(aimSchema.getName(
-                    Metric::COST, AggrFun::SUM, FilterType::NONLOCAL, WindowLength::WEEK));
-
-            context.subscriptionTypeId = tellSchema.idOf("subscription_type_id");
-
-            context.regionZip = tellSchema.idOf("city_zip");
-            context.regionCity = tellSchema.idOf("region_cty_id");
-            context.regionCountry = tellSchema.idOf("region_country_id");
-            context.regionRegion = tellSchema.idOf("region_region_id");
-
-            context.categoryId = tellSchema.idOf("category_id");
-            context.valueTypeId = tellSchema.idOf("value_type_id");
-
-            context.isInitialized = true;
-        }
     }
 
     template<Command C, class Callback>

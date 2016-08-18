@@ -34,10 +34,14 @@ namespace aim {
 
 using namespace tell::db;
 
-void Transactions::processEvent(Transaction& tx,
+void Transactions::processEvents(Transaction& tx,
             Context &context, std::vector<Event> &events) {
 
     try {
+        // aim schema is in the context, but open table has to be called anyway to correctly initialize the transaction cache
+        auto wFuture = tx.openTable("wt");
+        wFuture.get();
+
         std::vector<Future<Tuple>> tupleFutures;
         tupleFutures.reserve(events.size());
 

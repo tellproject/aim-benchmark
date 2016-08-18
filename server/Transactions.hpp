@@ -44,7 +44,11 @@ public:
             mAimSchema(aimSchema)
     {}
 
-    void processEvent(tell::db::Transaction& tx, Context &context,
+    const AIMSchema &getAimSchema() {
+        return mAimSchema;
+    }
+
+    void processEvents(tell::db::Transaction& tx, Context &context,
                 std::vector<Event> &events);
 
     Q1Out q1Transaction(tell::db::Transaction& tx, Context &context, const Q1In& in);
