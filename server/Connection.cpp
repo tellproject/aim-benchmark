@@ -113,15 +113,19 @@ private:
     Transactions& mTransactions;
     tell::db::TransactionFiber<Context>* mFiber;
     std::atomic<bool>& mIsFree;
+    tell::db::ClientManager<Context>& mClientManager;
 public:
     std::vector<Event> events;
-    EventProcessor(boost::asio::io_service& service, Transactions& transactions, std::atomic<bool>& isFree)
+    EventProcessor(boost::asio::io_service& service, Transactions&
+            transactions, std::atomic<bool>& isFree,
+            tell::db::ClientManager<Context>& clientManager)
         : mService(service)
         , mTransactions(transactions)
         , mIsFree(isFree)
+        , mClientManager(clientManager)
     {}
     void runTransaction(tell::db::Transaction& tx, Context& context) {
-        initializeContextIfNecessary(tx, context, mTransactions.getAimSchema(), nullptr);
+        initializeContextIfNecessary(tx, context, mTransactions.getAimSchema(), mClientManager.getScanMemoryManager());
         mTransactions.processEvents(tx, context, events);
         auto fiber = mFiber;
         auto isFree = &mIsFree;
@@ -190,7 +194,7 @@ void UdpServer::run() {
         auto isFree = mProcessingThreadFree[processingThread];
         if (eventBatch.size() >= mEventBatchSize && isFree->load()) {
             isFree->store(false);
-            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions, *isFree);
+            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions, *isFree, mClientManager);
             processor->events.swap(eventBatch);
             eventBatch.reserve(mEventBatchSize);
             processor->start(mClientManager, processingThread);
