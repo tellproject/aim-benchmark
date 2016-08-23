@@ -139,8 +139,9 @@ int main(int argc, const char** argv) {
             , value<'n'>("num-subscribers", &numSubscribers, tag::description{"Number of subscribers (data size)"})
             , value<'t'>("time", &time, tag::description{"Duration of the benchmark in seconds"})
             , value<'o'>("out", &outFile, tag::description{"Path to the output file"})
-            , value<'N'>("network-threads", &networkThreads, tag::description{"number of (TCP) networking threads"})
-            , value<'r'>("message-rate", &messageRate, tag::description{"Message rate in events/second"})
+            , value<'N'>("network-threads", &networkThreads, tag::description{"Number of (TCP) networking threads"})
+            , value<'r'>("message-rate", &messageRate,
+                tag::description{"Message rate in events/second (per client connection), total rate is message-rate * number of hosts * num-clients"})
             );
     try {
         parse(opts, argc, argv);
