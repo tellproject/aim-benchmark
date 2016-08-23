@@ -27,6 +27,7 @@
 
 #include <telldb/Transaction.hpp>
 #include <memory>
+#include <crossbow/logger.hpp>
 
 using namespace boost::asio;
 
@@ -192,12 +193,21 @@ void UdpServer::run() {
                 ev.caller_id % mEventBatches.size();
         auto &eventBatch = mEventBatches[processingThread];
         auto isFree = mProcessingThreadFree[processingThread];
-        if (eventBatch.size() >= mEventBatchSize && isFree->load()) {
-            isFree->store(false);
-            auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions, *isFree, mClientManager);
-            processor->events.swap(eventBatch);
-            eventBatch.reserve(mEventBatchSize);
-            processor->start(mClientManager, processingThread);
+        if (eventBatch.size() >= mEventBatchSize) {
+            if (isFree->load()) {
+                isFree->store(false);
+                auto processor = std::make_shared<EventProcessor>(mSocket.get_io_service(), mTransactions, *isFree, mClientManager);
+                processor->events.swap(eventBatch);
+                eventBatch.reserve(mEventBatchSize);
+                processor->start(mClientManager, processingThread);
+            } else if (eventBatch.size() >= 8*mEventBatchSize) {
+                if (!mOverloaded) {
+                    mOverloaded = true;
+                    LOG_WARN("Event Load too high, start dropping events.");
+                    run();
+                    return;
+                }
+            }
         }
         eventBatch.push_back(ev);
         run();

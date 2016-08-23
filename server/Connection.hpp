@@ -98,6 +98,7 @@ class UdpServer {
     unsigned mEventBatchSize;
     std::vector<std::vector<Event>> mEventBatches;
     std::vector<std::atomic<bool>*> mProcessingThreadFree;
+    bool mOverloaded;
 public:
     UdpServer(boost::asio::io_service& service,
               tell::db::ClientManager<Context>& clientManager,
@@ -112,6 +113,7 @@ public:
         , mEventBatchSize(eventBatchSize)
         , mEventBatches(processingThreads, std::vector<Event>())
         , mProcessingThreadFree(processingThreads, nullptr)
+        , mOverloaded(false)
     {
         for (auto& a : mProcessingThreadFree) {
             a = new std::atomic<bool>(true);
